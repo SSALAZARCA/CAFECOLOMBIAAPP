@@ -465,7 +465,7 @@ export default function WompiConfigurationPanel({ paymentSettings, onSettingsCha
                 type="url"
                 value={config.webhookUrl}
                 onChange={(e) => updateConfig({ webhookUrl: e.target.value })}
-                placeholder="https://tu-dominio.com/api/webhooks/wompi"
+                placeholder="https://your-domain.com/api/webhooks/wompi"
                 className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
               <button
