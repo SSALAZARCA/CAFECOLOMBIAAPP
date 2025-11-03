@@ -89,6 +89,58 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Endpoint de diagnóstico completo
+app.get('/api/debug/connection', (req, res) => {
+  const debugInfo = {
+    server: {
+      status: 'running',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      port: PORT,
+      baseUrl: `http://0.0.0.0:${PORT}/api`
+    },
+    network: {
+      hostname: require('os').hostname(),
+      platform: process.platform,
+      nodeVersion: process.version,
+      memoryUsage: process.memoryUsage()
+    },
+    configuration: {
+      corsOrigin: process.env.CORS_ORIGIN || '*',
+      dbHost: process.env.DB_HOST || 'localhost',
+      dbName: process.env.DB_NAME || 'cafe_colombia',
+      redisHost: process.env.REDIS_HOST || 'localhost'
+    },
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      admin: '/api/admin',
+      dashboard: '/api/dashboard',
+      alerts: '/api/alerts',
+      ai: '/api/ai'
+    },
+    request: {
+      method: req.method,
+      url: req.url,
+      headers: {
+        host: req.get('host'),
+        userAgent: req.get('user-agent'),
+        origin: req.get('origin'),
+        referer: req.get('referer')
+      },
+      ip: req.ip || req.connection.remoteAddress
+    }
+  };
+
+  res.json({
+    success: true,
+    message: 'Información de diagnóstico del servidor',
+    data: debugInfo
+  });
+});
+
 // Ruta principal de la API
 app.get('/api', (req, res) => {
   res.json({

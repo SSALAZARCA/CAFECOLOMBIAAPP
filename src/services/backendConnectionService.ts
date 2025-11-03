@@ -6,6 +6,7 @@ export interface ConnectionStatus {
   lastChecked: Date;
   retryCount: number;
   error?: string;
+  currentUrl?: string;
 }
 
 export interface BackendHealthResponse {
@@ -30,7 +31,15 @@ class BackendConnectionService {
   private healthCheckInterval_ms = 30000; // 30 segundos
   private isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
 
-  private baseUrl = import.meta.env.VITE_API_URL || '/api';
+  // URLs de fallback para diferentes entornos
+  private baseUrls = [
+    import.meta.env.VITE_API_URL || '/api',
+    '/api',
+    'http://localhost:3001/api',
+    'http://127.0.0.1:3001/api'
+  ].filter((url, index, arr) => arr.indexOf(url) === index); // Eliminar duplicados
+
+  private currentBaseUrl = this.baseUrls[0];
   private healthEndpoint = '/health';
 
   constructor() {
@@ -40,8 +49,49 @@ class BackendConnectionService {
       this.maxRetries = 2; // Menos reintentos en desarrollo
     }
     
+    console.log('🔧 BackendConnectionService initialized');
+    console.log('🔧 Available URLs:', this.baseUrls);
+    console.log('🔧 Current URL:', this.currentBaseUrl);
+    console.log('🔧 Environment:', this.isDevelopment ? 'development' : 'production');
+    
     this.startHealthCheck();
     this.setupEventListeners();
+  }
+
+  /**
+   * Probar múltiples URLs hasta encontrar una que funcione
+   */
+  private async tryMultipleUrls(): Promise<{ success: boolean; url?: string; response?: Response; error?: string }> {
+    for (const baseUrl of this.baseUrls) {
+      try {
+        console.log(`🔧 Trying URL: ${baseUrl}${this.healthEndpoint}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos timeout
+
+        const response = await fetch(`${baseUrl}${this.healthEndpoint}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          console.log(`✅ Success with URL: ${baseUrl}`);
+          this.currentBaseUrl = baseUrl;
+          return { success: true, url: baseUrl, response };
+        } else {
+          console.log(`❌ Failed with URL: ${baseUrl} - Status: ${response.status}`);
+        }
+      } catch (error: any) {
+        console.log(`❌ Error with URL: ${baseUrl} - ${error.message}`);
+      }
+    }
+
+    return { success: false, error: 'All URLs failed' };
   }
 
   /**
@@ -49,39 +99,35 @@ class BackendConnectionService {
    */
   async checkHealth(): Promise<ConnectionStatus> {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
+      const result = await this.tryMultipleUrls();
 
-      const response = await fetch(`${this.baseUrl}${this.healthEndpoint}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const healthData: BackendHealthResponse = await response.json();
+      if (result.success && result.response) {
+        const healthData: BackendHealthResponse = await result.response.json();
         
         this.connectionStatus = {
           isConnected: true,
           lastChecked: new Date(),
-          retryCount: 0
+          retryCount: 0,
+          currentUrl: result.url
         };
 
         // Si acabamos de reconectar después de errores
         if (this.connectionStatus.retryCount > 0) {
           console.log('✅ Backend connection restored');
           toast.success('Conexión al servidor restaurada', {
-            description: 'Todos los servicios están funcionando correctamente'
+            description: `Conectado a: ${result.url}`
           });
         }
 
+        console.log('✅ Backend health check successful:', {
+          url: result.url,
+          status: healthData.status,
+          environment: healthData.environment
+        });
+
         return this.connectionStatus;
       } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(result.error || 'All connection attempts failed');
       }
     } catch (error: any) {
       const errorMessage = this.getErrorMessage(error);
@@ -90,23 +136,20 @@ class BackendConnectionService {
         isConnected: false,
         lastChecked: new Date(),
         retryCount: this.connectionStatus.retryCount + 1,
-        error: errorMessage
+        error: errorMessage,
+        currentUrl: this.currentBaseUrl
       };
 
-      // En modo desarrollo, ser menos ruidoso con los errores
-      if (this.isDevelopment) {
-        // Solo logear el primer error en desarrollo
-        if (this.connectionStatus.retryCount === 1) {
-          console.log(`🔄 Backend not available in development mode - running offline`);
-        }
-      } else {
-        console.warn(`❌ Backend health check failed (attempt ${this.connectionStatus.retryCount}):`, errorMessage);
-      }
+      console.error(`❌ Backend health check failed (attempt ${this.connectionStatus.retryCount}):`, {
+        error: errorMessage,
+        triedUrls: this.baseUrls,
+        currentUrl: this.currentBaseUrl
+      });
 
       // Solo mostrar toast en producción o en el primer error en desarrollo
       if (!this.isDevelopment && (this.connectionStatus.retryCount === 1 || this.connectionStatus.retryCount % 5 === 0)) {
         toast.error('Error de conexión al servidor', {
-          description: `${errorMessage}. Reintentando...`,
+          description: `${errorMessage}. Probando URLs alternativas...`,
           duration: 5000
         });
       }
@@ -140,17 +183,21 @@ class BackendConnectionService {
     try {
       // Verificar conexión primero
       if (!this.connectionStatus.isConnected) {
+        console.log('🔧 Connection not established, checking health...');
         await this.checkHealth();
       }
 
       if (!this.connectionStatus.isConnected) {
-        throw new Error('Backend not available');
+        throw new Error('Backend not available after health check');
       }
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos
 
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const fullUrl = `${this.currentBaseUrl}${endpoint}`;
+      console.log(`🔧 Making request to: ${fullUrl}`);
+
+      const response = await fetch(fullUrl, {
         ...options,
         signal: controller.signal,
         headers: {
@@ -166,6 +213,7 @@ class BackendConnectionService {
       }
 
       const data = await response.json();
+      console.log(`✅ Request successful: ${fullUrl}`);
       return { data, fromCache: false };
 
     } catch (error: any) {
@@ -208,62 +256,65 @@ class BackendConnectionService {
   /**
    * Obtener datos del cache
    */
-  private getCachedData<T>(endpoint: string): T | null {
+  getCachedData<T>(endpoint: string): T | null {
     try {
       const cacheKey = `api_cache_${endpoint.replace(/[^a-zA-Z0-9]/g, '_')}`;
       const cached = localStorage.getItem(cacheKey);
       
-      if (!cached) return null;
-
-      const cacheData = JSON.parse(cached);
-      const maxAge = 30 * 60 * 1000; // 30 minutos
-      
-      if (Date.now() - cacheData.timestamp > maxAge) {
-        localStorage.removeItem(cacheKey);
-        return null;
+      if (cached) {
+        const cacheData = JSON.parse(cached);
+        const age = Date.now() - cacheData.timestamp;
+        const maxAge = 5 * 60 * 1000; // 5 minutos
+        
+        if (age < maxAge) {
+          return cacheData.data;
+        } else {
+          localStorage.removeItem(cacheKey);
+        }
       }
-
-      return cacheData.data;
     } catch (error) {
       console.warn('Failed to get cached data:', error);
-      return null;
     }
+    
+    return null;
   }
 
   /**
-   * Iniciar verificación periódica de salud
+   * Iniciar verificaciones periódicas de salud
    */
   private startHealthCheck(): void {
     // Verificación inicial
     this.checkHealth();
-
-    // Verificación periódica
+    
+    // Verificaciones periódicas
     this.healthCheckInterval = setInterval(() => {
       this.checkHealth();
     }, this.healthCheckInterval_ms);
   }
 
   /**
-   * Configurar listeners de eventos
+   * Configurar event listeners
    */
   private setupEventListeners(): void {
-    // Verificar cuando se restaura la conexión a internet
-    window.addEventListener('online', () => {
-      console.log('🌐 Internet connection restored, checking backend...');
-      setTimeout(() => this.checkHealth(), 1000);
-    });
-
-    // Pausar verificaciones cuando se pierde la conexión
-    window.addEventListener('offline', () => {
-      console.log('🌐 Internet connection lost');
-      this.connectionStatus.isConnected = false;
-    });
-
-    // Verificar cuando la página vuelve a estar visible
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && navigator.onLine) {
+    // Verificar conexión cuando la ventana recupera el foco
+    window.addEventListener('focus', () => {
+      if (!this.connectionStatus.isConnected) {
+        console.log('🔧 Window focused, checking connection...');
         this.checkHealth();
       }
+    });
+
+    // Verificar conexión cuando se restaura la conectividad
+    window.addEventListener('online', () => {
+      console.log('🔧 Network online, checking connection...');
+      this.checkHealth();
+    });
+
+    // Manejar pérdida de conectividad
+    window.addEventListener('offline', () => {
+      console.log('🔧 Network offline');
+      this.connectionStatus.isConnected = false;
+      this.connectionStatus.error = 'Network offline';
     });
   }
 
@@ -279,8 +330,8 @@ class BackendConnectionService {
       return 'Error de red - servidor no disponible';
     }
     
-    if (error.message?.includes('ECONNREFUSED')) {
-      return 'Conexión rechazada - servidor offline';
+    if (error.message?.includes('CORS')) {
+      return 'Error de CORS - configuración del servidor';
     }
     
     return error.message || 'Error desconocido';
@@ -300,42 +351,21 @@ class BackendConnectionService {
   }
 
   /**
-   * Reiniciar el servicio
+   * Obtener información de debug
    */
-  restart(): void {
-    this.destroy();
-    this.connectionStatus = {
-      isConnected: false,
-      lastChecked: new Date(),
-      retryCount: 0
+  getDebugInfo(): any {
+    return {
+      connectionStatus: this.connectionStatus,
+      availableUrls: this.baseUrls,
+      currentUrl: this.currentBaseUrl,
+      isDevelopment: this.isDevelopment,
+      environment: import.meta.env.MODE,
+      viteApiUrl: import.meta.env.VITE_API_URL
     };
-    this.startHealthCheck();
   }
 }
 
 // Instancia singleton
-export const backendConnectionService = new BackendConnectionService();
-
-// Hook para usar en componentes React
-export const useBackendConnection = () => {
-  const [status, setStatus] = React.useState<ConnectionStatus>(
-    backendConnectionService.getConnectionStatus()
-  );
-
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      setStatus(backendConnectionService.getConnectionStatus());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  return {
-    ...status,
-    checkHealth: () => backendConnectionService.checkHealth(),
-    fetchWithFallback: backendConnectionService.fetchWithFallback.bind(backendConnectionService),
-    isAvailable: backendConnectionService.isBackendAvailable()
-  };
-};
+const backendConnectionService = new BackendConnectionService();
 
 export default backendConnectionService;

@@ -37,6 +37,7 @@ import { pushNotificationService } from "./services/pushNotificationService";
 import { cloudInitializer } from "./services/cloudInitializer";
 import NotificationCenter from "./components/NotificationCenter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import ConnectionDebugPanel from "./components/debug/ConnectionDebugPanel";
 import { Toaster } from "sonner";
 
 export default function App() {
@@ -297,6 +298,9 @@ export default function App() {
           
           {/* Toaster para notificaciones del admin */}
           <Toaster position="top-right" richColors />
+          
+          {/* Panel de Debug de Conexión */}
+          <ConnectionDebugPanel />
         </div>
       </Router>
     </ErrorBoundary>
