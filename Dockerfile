@@ -32,9 +32,10 @@ COPY scripts/ ./scripts/
 # ================================
 FROM base AS deps
 
-# Instalar TODAS las dependencias (incluyendo devDependencies para el build)
-RUN npm ci && npm cache clean --force
-RUN cd api && npm install --only=production && npm cache clean --force
+    # Instalar TODAS las dependencias (incluyendo devDependencies para el build)
+    # Usar --ignore-scripts para evitar que postinstall ejecute npm run build sin archivos fuente
+    RUN npm ci --ignore-scripts && npm cache clean --force
+    RUN cd api && npm install --only=production && npm cache clean --force
 
 # ================================
 # STAGE 1.5: Dependencias de producción solamente
