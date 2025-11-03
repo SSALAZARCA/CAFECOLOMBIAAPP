@@ -1,0 +1,37 @@
+# Dockerfile automático para Coolify
+# Café Colombia App - Build completamente automatizado
+
+# Usar Node.js LTS como imagen base
+FROM node:20-alpine
+
+# Establecer directorio de trabajo
+WORKDIR /app
+
+# Copiar archivos de configuración
+COPY package*.json ./
+COPY build-coolify.cjs ./
+
+# Copiar código fuente
+COPY . .
+
+# Instalar dependencias y ejecutar build automático
+RUN npm run coolify:build
+
+# Exponer puerto
+EXPOSE 3001
+
+# Variables de entorno para producción
+ENV NODE_ENV=production
+ENV PORT=3001
+
+# Comando de inicio
+CMD ["npm", "run", "coolify:start"]
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3001/api/health || exit 1
+
+# Metadata
+LABEL maintainer="Café Colombia App"
+LABEL description="Sistema de Gestión de Caficultores - Build Automático para Coolify"
+LABEL version="1.0.0"

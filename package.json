@@ -6,7 +6,7 @@
   "scripts": {
     "client:dev": "vite",
     "build": "npm run server:build && vite build",
-    "build:prod": "NODE_ENV=production npm run build",
+    "build:prod": "NODE_ENV=production vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "check": "tsc --noEmit",
@@ -36,7 +36,13 @@
     "maintenance:quick": "node scripts/maintenance.cjs --no-db --no-report",
     "clean": "rm -rf dist api/dist node_modules/.vite",
     "install:prod": "npm ci --production",
-    "postinstall": "npm run build"
+    "postinstall": "npm run build",
+    "build:all": "npm install && npm run build && cd api && npm install",
+    "start:production": "cd api && node server.cjs",
+    "coolify:build": "node build-coolify.cjs",
+    "coolify:start": "cd api && node server.cjs",
+    "build:frontend": "vite build",
+    "build:complete": "npm ci && npm run build:frontend && cd api && npm ci --production"
   },
   "dependencies": {
     "@google/maps": "^1.1.3",

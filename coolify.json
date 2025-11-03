@@ -1,0 +1,29 @@
+{
+  "name": "cafe-colombia-fullstack",
+  "type": "nodejs",
+  "buildCommand": "npm run coolify:build",
+  "startCommand": "npm run coolify:start",
+  "port": 3001,
+  "healthCheck": "/api/health",
+  "environment": {
+    "NODE_ENV": "production",
+    "PORT": "3001",
+    "HOST": "0.0.0.0"
+  },
+  "domains": [
+    {
+      "domain": "tu-dominio.com",
+      "ssl": true
+    }
+  ],
+  "volumes": [
+    {
+      "source": "/app/uploads",
+      "target": "/app/uploads"
+    },
+    {
+      "source": "/app/logs",
+      "target": "/app/logs"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+# Dockerfile para Backend (Node.js/Express)
+# Usar en Coolify para el servicio cafe-colombia-api
+
+FROM node:18-alpine
+
+# Crear directorio de trabajo
+WORKDIR /app
+
+# Copiar package.json y package-lock.json
+COPY package*.json ./
+
+# Instalar dependencias de producción
+RUN npm ci --only=production && npm cache clean --force
+
+# Copiar el código fuente
+COPY . .
+
+# Crear usuario no-root para seguridad
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Cambiar ownership de archivos
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+# Exponer puerto
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "const http=require('http');const options={hostname:'localhost',port:3001,path:'/api/health',timeout:2000};const req=http.request(options,(res)=>{process.exit(res.statusCode===200?0:1)});req.on('error',()=>process.exit(1));req.end();"
+
+# Comando de inicio
+CMD ["node", "server.cjs"]

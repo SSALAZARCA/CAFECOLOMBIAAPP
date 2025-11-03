@@ -1,0 +1,63 @@
+# Dockerfile Unificado (Frontend + Backend en un solo servicio)
+# Usar si prefieres mantener todo en un solo servicio en Coolify
+
+# Etapa 1: Build del Frontend
+FROM node:18-alpine as frontend-build
+
+WORKDIR /app
+
+# Copiar package.json del frontend
+COPY package*.json ./
+
+# Instalar dependencias del frontend
+RUN npm ci && npm cache clean --force
+
+# Copiar código fuente del frontend
+COPY . .
+
+# Variables de entorno para build
+ARG VITE_API_URL=/api
+ARG VITE_APP_URL
+ARG VITE_APP_NAME=Cafe Colombia
+
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_APP_URL=$VITE_APP_URL
+ENV VITE_APP_NAME=$VITE_APP_NAME
+
+# Build del frontend
+RUN npm run build
+
+# Etapa 2: Backend con Frontend integrado
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copiar package.json del backend
+COPY api/package*.json ./
+
+# Instalar dependencias del backend
+RUN npm ci --only=production && npm cache clean --force
+
+# Copiar código del backend
+COPY api/ ./
+
+# Copiar build del frontend
+COPY --from=frontend-build /app/dist ./public
+
+# Crear usuario no-root
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Cambiar ownership
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+# Exponer puerto
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "const http=require('http');const options={hostname:'localhost',port:3001,path:'/api/health',timeout:2000};const req=http.request(options,(res)=>{process.exit(res.statusCode===200?0:1)});req.on('error',()=>process.exit(1));req.end();"
+
+# Comando de inicio
+CMD ["node", "server.cjs"]

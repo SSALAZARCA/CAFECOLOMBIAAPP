@@ -1,0 +1,15 @@
+{
+  "build": {
+    "frontend": {
+      "path": "./dist",
+      "index": "index.html"
+    },
+    "backend": {
+      "path": "./api",
+      "main": "server.cjs"
+    }
+  },
+  "environment": "production",
+  "buildTime": "2025-11-03T18:57:52.237Z",
+  "note": "Build simplificado para compatibilidad con Coolify"
+}
