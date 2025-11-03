@@ -28,11 +28,20 @@ COPY api/package*.json ./api/
 COPY scripts/ ./scripts/
 
 # ================================
-# STAGE 1: Dependencias
+# STAGE 1: Dependencias (todas para el build)
 # ================================
 FROM base AS deps
 
-# Instalar dependencias
+# Instalar TODAS las dependencias (incluyendo devDependencies para el build)
+RUN npm ci && npm cache clean --force
+RUN cd api && npm ci --only=production && npm cache clean --force
+
+# ================================
+# STAGE 1.5: Dependencias de producción solamente
+# ================================
+FROM base AS deps-prod
+
+# Instalar solo dependencias de producción para la imagen final
 RUN npm ci --only=production && npm cache clean --force
 RUN cd api && npm ci --only=production && npm cache clean --force
 
@@ -69,8 +78,8 @@ RUN chown -R cafeapp:nodejs /app
 # Copiar archivos necesarios
 COPY --from=builder --chown=cafeapp:nodejs /app/dist ./dist
 COPY --from=builder --chown=cafeapp:nodejs /app/api/dist ./api/dist
-COPY --from=deps --chown=cafeapp:nodejs /app/node_modules ./node_modules
-COPY --from=deps --chown=cafeapp:nodejs /app/api/node_modules ./api/node_modules
+COPY --from=deps-prod --chown=cafeapp:nodejs /app/node_modules ./node_modules
+COPY --from=deps-prod --chown=cafeapp:nodejs /app/api/node_modules ./api/node_modules
 
 # Copiar archivos de configuración
 COPY --chown=cafeapp:nodejs package.json ./
