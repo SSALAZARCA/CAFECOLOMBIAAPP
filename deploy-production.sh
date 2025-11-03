@@ -12,7 +12,16 @@ echo "🚀 Iniciando deployment de Café Colombia App..."
 # ========================================
 APP_NAME="Café Colombia App"
 DOCKER_COMPOSE_FILE="docker-compose.yml"
+TRAEFIK_COMPOSE_FILE="docker-compose.traefik.yml"
 ENV_FILE=".env.docker"
+
+# Detectar si se debe usar Traefik
+USE_TRAEFIK=false
+if [ -f "$TRAEFIK_COMPOSE_FILE" ] && [ "$1" = "--traefik" ]; then
+    USE_TRAEFIK=true
+    DOCKER_COMPOSE_FILE="$TRAEFIK_COMPOSE_FILE"
+    log_info "Usando configuración con Traefik: $TRAEFIK_COMPOSE_FILE"
+fi
 
 # ========================================
 # FUNCIONES AUXILIARES
@@ -166,12 +175,29 @@ echo "🎉 ¡Deployment completado exitosamente!"
 echo ""
 echo "📋 Información del deployment:"
 echo "   • Aplicación: $APP_NAME"
-echo "   • URL: http://localhost"
-echo "   • API: http://localhost/api"
+if [ "$USE_TRAEFIK" = true ]; then
+    echo "   • Configuración: Traefik Proxy con SSL automático"
+    echo "   • URL: https://$(grep DOMAIN $ENV_FILE | cut -d'=' -f2)"
+    echo "   • API: https://$(grep DOMAIN $ENV_FILE | cut -d'=' -f2)/api"
+    echo "   • Traefik Dashboard: http://localhost:8080"
+else
+    echo "   • URL: http://localhost"
+    echo "   • API: http://localhost/api"
+fi
 echo "   • Health Check: http://localhost/health"
 echo ""
 echo "📊 Estado de los contenedores:"
-docker-compose --env-file "$ENV_FILE" ps
+docker-compose -f "$DOCKER_COMPOSE_FILE" --env-file "$ENV_FILE" ps
+echo ""
+if [ "$USE_TRAEFIK" = true ]; then
+    echo "🔧 Para usar Traefik:"
+    echo "   • Asegúrate de configurar DOMAIN y SSL_EMAIL en $ENV_FILE"
+    echo "   • El certificado SSL se generará automáticamente"
+    echo "   • Dashboard de Traefik disponible en: http://localhost:8080"
+else
+    echo "💡 Para usar con Traefik (recomendado para producción):"
+    echo "   ./deploy-production.sh --traefik"
+fi
 echo ""
 echo "📝 Para ver los logs:"
 echo "   docker-compose --env-file $ENV_FILE logs -f"
