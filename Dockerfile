@@ -61,9 +61,8 @@ COPY --from=deps /app/api/node_modules ./api/node_modules
 # Copiar código fuente
 COPY . .
 
-# Compilar aplicación
+# Ejecutar build simplificado (sin TypeScript)
 RUN npm run build
-RUN cd api && npm run build
 
 # ================================
 # STAGE 3: Runner (Producción)

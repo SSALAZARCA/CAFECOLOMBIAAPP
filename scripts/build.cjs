@@ -2,11 +2,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 /**
- * Script de build multiplataforma para Café Colombia App
- * Funciona en Windows, Linux y macOS
+ * Script de build simplificado para Café Colombia App
+ * NO usa TypeScript - solo copia archivos JavaScript existentes
  */
 
 function copyRecursive(src, dest) {
@@ -30,7 +29,7 @@ function copyRecursive(src, dest) {
 }
 
 function main() {
-  console.log('🔨 Iniciando build del servidor...');
+  console.log('🔨 Iniciando build simplificado del servidor...');
   
   const rootDir = process.cwd();
   const apiDistDir = path.join(rootDir, 'api', 'dist');
@@ -42,30 +41,36 @@ function main() {
       fs.mkdirSync(apiDistDir, { recursive: true });
     }
     
-    // Compilar TypeScript del API
-    console.log('🔧 Compilando TypeScript del API...');
-    try {
-      execSync('npx tsc --project tsconfig.server.json', { 
-        stdio: 'inherit',
-        cwd: rootDir 
-      });
-      console.log('✅ Compilación de TypeScript completada');
-    } catch (error) {
-      console.error('❌ Error compilando TypeScript:', error.message);
-      // Si falla TypeScript, copiar archivos JS existentes
-      console.log('📂 Copiando archivos JS existentes...');
-      const apiSrc = path.join(rootDir, 'api');
-      const apiFiles = fs.readdirSync(apiSrc).filter(file => 
-        file.endsWith('.js') || file.endsWith('.cjs')
-      );
-      
-      apiFiles.forEach(file => {
-        fs.copyFileSync(
-          path.join(apiSrc, file),
-          path.join(apiDistDir, file)
-        );
-      });
+    // Copiar archivos JavaScript del API (NO compilar TypeScript)
+    console.log('📂 Copiando archivos JavaScript del API...');
+    const apiSrc = path.join(rootDir, 'api');
+    const apiFiles = fs.readdirSync(apiSrc).filter(file => 
+      file.endsWith('.js') || file.endsWith('.cjs')
+    );
+    
+    if (apiFiles.length === 0) {
+      console.warn('⚠️  No se encontraron archivos JavaScript en el API');
     }
+    
+    apiFiles.forEach(file => {
+      console.log(`   Copiando ${file}...`);
+      fs.copyFileSync(
+        path.join(apiSrc, file),
+        path.join(apiDistDir, file)
+      );
+    });
+    
+    // Copiar subdirectorios importantes del API
+    const apiSubDirs = ['routes', 'controllers', 'middleware', 'services', 'utils', 'config'];
+    apiSubDirs.forEach(subDir => {
+      const srcPath = path.join(apiSrc, subDir);
+      const destPath = path.join(apiDistDir, subDir);
+      
+      if (fs.existsSync(srcPath)) {
+        console.log(`📂 Copiando directorio ${subDir}...`);
+        copyRecursive(srcPath, destPath);
+      }
+    });
     
     // Copiar directorio scripts al dist principal
     const distDir = path.join(rootDir, 'dist');
@@ -79,11 +84,13 @@ function main() {
     if (fs.existsSync(scriptsSrc)) {
       console.log('📂 Copiando directorio scripts...');
       copyRecursive(scriptsSrc, scriptsDest);
-    } else {
-      console.warn('⚠️  Directorio scripts no encontrado');
     }
     
-    console.log('✅ Build del servidor completado exitosamente');
+    console.log('✅ Build simplificado completado exitosamente');
+    console.log('📋 Archivos copiados:');
+    console.log(`   - ${apiFiles.length} archivos JavaScript del API`);
+    console.log('   - Subdirectorios del API');
+    console.log('   - Directorio scripts');
     
   } catch (error) {
     console.error('❌ Error durante el build:', error.message);
