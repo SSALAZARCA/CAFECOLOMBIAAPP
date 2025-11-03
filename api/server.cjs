@@ -837,12 +837,22 @@ app.use('/api/alerts', alertsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Middleware para rutas no encontradas
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Ruta no encontrada',
-    path: req.originalUrl
-  });
+// Servir archivos estáticos del frontend (build de Vite)
+const frontendPath = path.join(__dirname, '..', 'dist');
+app.use(express.static(frontendPath));
+
+// Fallback para SPA - servir index.html para todas las rutas que no sean API
+app.get('*', (req, res) => {
+  // Si la ruta comienza con /api, devolver error 404 para API
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({
+      error: 'Ruta de API no encontrada',
+      path: req.originalUrl
+    });
+  }
+  
+  // Para todas las demás rutas, servir el index.html (SPA fallback)
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 // Iniciar servidor
