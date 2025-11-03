@@ -83,6 +83,7 @@ COPY --from=builder --chown=cafeapp:nodejs /app/dist ./dist
 COPY --from=builder --chown=cafeapp:nodejs /app/api/dist ./api/dist
 COPY --from=builder --chown=cafeapp:nodejs /app/api/*.cjs ./api/
 COPY --from=builder --chown=cafeapp:nodejs /app/api/routes/*.cjs ./api/routes/
+COPY --from=builder --chown=cafeapp:nodejs /app/api/.env ./api/.env
 COPY --from=deps-prod --chown=cafeapp:nodejs /app/node_modules ./node_modules
 COPY --from=deps-prod --chown=cafeapp:nodejs /app/api/node_modules ./api/node_modules
 
