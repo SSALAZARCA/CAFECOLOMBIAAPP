@@ -30,7 +30,7 @@ class BackendConnectionService {
   private healthCheckInterval_ms = 30000; // 30 segundos
   private isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
 
-  private baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  private baseUrl = import.meta.env.VITE_API_URL || '/api';
   private healthEndpoint = '/api/health';
 
   constructor() {

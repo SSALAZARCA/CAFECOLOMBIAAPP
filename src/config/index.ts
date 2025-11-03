@@ -67,7 +67,7 @@ const getAppConfig = (): AppConfig => {
       debugging: isDevelopment
     },
     api: {
-      baseUrl: import.meta.env.VITE_API_BASE_URL || '',
+      baseUrl: import.meta.env.VITE_API_URL || '/api',
       timeout: 30000,
       retryAttempts: 3
     },
@@ -139,18 +139,18 @@ export const validateConfiguration = (): ConfigValidationResult => {
     errors.push('API base URL must start with http or https');
   }
 
-  // In development mode, VITE_API_BASE_URL can be empty for Vite proxy
+  // In development mode, VITE_API_URL can be empty for Vite proxy
   if (!isDevelopment) {
-    const requiredEnvVars = ['VITE_API_BASE_URL'];
+    const requiredEnvVars = ['VITE_API_URL'];
     const missingEnvVars = requiredEnvVars.filter(varName => !import.meta.env[varName]);
     
     if (missingEnvVars.length > 0) {
       errors.push(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
     }
   } else {
-    // In development mode, just warn if VITE_API_BASE_URL is not set
-    if (!import.meta.env.VITE_API_BASE_URL) {
-      warnings.push('VITE_API_BASE_URL not set - using Vite proxy for API requests');
+    // In development mode, just warn if VITE_API_URL is not set
+    if (!import.meta.env.VITE_API_URL) {
+      warnings.push('VITE_API_URL not set - using Vite proxy for API requests');
     }
   }
 

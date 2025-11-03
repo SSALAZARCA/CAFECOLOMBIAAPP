@@ -8,7 +8,7 @@ export interface ApiResponse<T> {
 }
 
 class ApiService {
-  private baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  private baseUrl = import.meta.env.VITE_API_URL || '/api';
 
   /**
    * Realizar petición GET con fallback automático
