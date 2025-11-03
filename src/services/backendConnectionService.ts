@@ -31,7 +31,7 @@ class BackendConnectionService {
   private isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
 
   private baseUrl = import.meta.env.VITE_API_URL || '/api';
-  private healthEndpoint = '/api/health';
+  private healthEndpoint = '/health';
 
   constructor() {
     // En modo desarrollo, reducir la frecuencia de health checks

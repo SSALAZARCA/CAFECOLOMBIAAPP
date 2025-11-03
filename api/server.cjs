@@ -331,8 +331,8 @@ app.post('/api/auth/register', async (req, res) => {
           phone || null, 
           location ? location.split(',')[0] : 'No especificado',
           location ? location.split(',')[1] || 'No especificado' : 'No especificado',
-          farmSize || null, 
-          farmSize || null, 
+          farmSize || 1.0, // Valor por defecto de 1 hectárea si no se especifica
+          farmSize || 1.0, // Valor por defecto de 1 hectárea si no se especifica
           coffeeVariety || null,
           adminUserId
         ]
@@ -352,8 +352,8 @@ app.post('/api/auth/register', async (req, res) => {
             location || 'Dirección no especificada',
             location ? location.split(',')[0] : 'No especificado',
             location ? location.split(',')[1] || 'No especificado' : 'No especificado',
-            farmSize || null, 
-            farmSize || null, 
+            farmSize || 1.0, // Valor por defecto de 1 hectárea si no se especifica
+            farmSize || 1.0, // Valor por defecto de 1 hectárea si no se especifica
             altitude || null,
             adminUserId
           ]

@@ -110,7 +110,8 @@ const Register: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/auth/register', {
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

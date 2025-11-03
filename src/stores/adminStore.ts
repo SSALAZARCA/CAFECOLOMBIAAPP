@@ -301,7 +301,8 @@ export const useAdminStore = create<AdminStore>()(
         if (!session) return false;
         
         try {
-          const response = await fetch('/api/auth/admin/refresh', {
+          const apiUrl = import.meta.env.VITE_API_URL || '/api';
+          const response = await fetch(`${apiUrl}/auth/admin/refresh`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${session.token}` }
           });
@@ -324,7 +325,8 @@ export const useAdminStore = create<AdminStore>()(
         const { session } = get();
         if (!session) throw new Error('No hay sesión activa');
         
-        const response = await fetch('/api/auth/admin/2fa/enable', {
+        const apiUrl = import.meta.env.VITE_API_URL || '/api';
+        const response = await fetch(`${apiUrl}/auth/admin/2fa/enable`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${session.token}` }
         });
@@ -339,7 +341,8 @@ export const useAdminStore = create<AdminStore>()(
         const { session } = get();
         if (!session) throw new Error('No hay sesión activa');
         
-        const response = await fetch('/api/auth/admin/2fa/verify', {
+        const apiUrl = import.meta.env.VITE_API_URL || '/api';
+        const response = await fetch(`${apiUrl}/auth/admin/2fa/verify`, {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${session.token}`,
@@ -366,7 +369,8 @@ export const useAdminStore = create<AdminStore>()(
         const { session } = get();
         if (!session) throw new Error('No hay sesión activa');
         
-        const response = await fetch('/api/auth/admin/2fa/disable', {
+        const apiUrl = import.meta.env.VITE_API_URL || '/api';
+        const response = await fetch(`${apiUrl}/auth/admin/2fa/disable`, {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${session.token}`,
