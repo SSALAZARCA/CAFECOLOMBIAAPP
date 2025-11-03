@@ -368,4 +368,41 @@ class BackendConnectionService {
 // Instancia singleton
 const backendConnectionService = new BackendConnectionService();
 
+// Hook personalizado para usar el servicio de conexión
+export const useBackendConnection = () => {
+  const [connectionStatus, setConnectionStatus] = React.useState<ConnectionStatus>(
+    backendConnectionService.getConnectionStatus()
+  );
+
+  React.useEffect(() => {
+    // Actualizar el estado inicial
+    setConnectionStatus(backendConnectionService.getConnectionStatus());
+
+    // Configurar un intervalo para actualizar el estado
+    const interval = setInterval(() => {
+      setConnectionStatus(backendConnectionService.getConnectionStatus());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const checkHealth = React.useCallback(async () => {
+    const status = await backendConnectionService.checkHealth();
+    setConnectionStatus(status);
+    return status;
+  }, []);
+
+  return {
+    isConnected: connectionStatus.isConnected,
+    lastChecked: connectionStatus.lastChecked,
+    retryCount: connectionStatus.retryCount,
+    error: connectionStatus.error,
+    currentUrl: connectionStatus.currentUrl,
+    checkHealth,
+    isAvailable: () => backendConnectionService.isBackendAvailable(),
+    fetchWithFallback: backendConnectionService.fetchWithFallback.bind(backendConnectionService),
+    getDebugInfo: () => backendConnectionService.getDebugInfo()
+  };
+};
+
 export default backendConnectionService;
