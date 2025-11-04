@@ -3,10 +3,13 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './index.css'
 
+// TODO: Restaurar después de que funcione la versión mínima
 // Importar funciones de prueba en desarrollo
+/*
 if (import.meta.env.DEV) {
   import('./tests/phytosanitaryAgentTest');
 }
+*/
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -170,7 +170,7 @@ export const CONNECTION_QUALITY = {
     FAIR: 3000, // < 3 segundos
     POOR: 5000  // < 5 segundos
   },
-  TEST_URL: '/api/ping', // Always use internal API for connectivity tests
+  TEST_URL: (import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001').replace(/\/$/, '') + '/api/health',
   TEST_INTERVAL: 30000 // 30 segundos
 };
 

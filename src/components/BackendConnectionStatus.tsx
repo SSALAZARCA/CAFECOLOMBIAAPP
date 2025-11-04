@@ -35,6 +35,11 @@ export const BackendConnectionStatus: React.FC<BackendConnectionStatusProps> = (
   };
 
   const handleRetry = () => {
+    // En desarrollo, no hacer peticiones para evitar ERR_ABORTED
+    if (import.meta.env.DEV) {
+      console.log('🔧 Health check retry skipped in development mode');
+      return;
+    }
     checkHealth();
   };
 

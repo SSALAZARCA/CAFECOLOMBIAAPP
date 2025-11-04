@@ -26,12 +26,14 @@ const dbConfig = {
 };
 
 // Configuración de CORS
+const defaultOrigins = [
+  'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176',
+  'http://localhost', 'http://localhost:80'
+];
+const envOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean) : [];
+const allowedOrigins = [...defaultOrigins, ...envOrigins];
 const corsOptions = {
-  origin: [
-    'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176',
-    'http://localhost', 'http://localhost:80',
-    process.env.CORS_ORIGIN || 'http://localhost'
-  ].filter(Boolean),
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -87,6 +89,15 @@ app.get('/api/health', async (req, res) => {
       error: error.message
     });
   }
+});
+
+// Ruta de ping simple
+app.get('/api/ping', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'pong',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Endpoint de diagnóstico completo

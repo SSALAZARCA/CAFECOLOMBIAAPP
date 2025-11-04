@@ -31,7 +31,10 @@ interface RefreshTokenResponse {
 // CONFIGURACIÓN
 // =====================================================
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Forzar IPv4 directo y evitar proxy /api en desarrollo
+const API_BASE_URL = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http'))
+  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
+  : 'http://127.0.0.1:3001';
 
 const DEFAULT_TIMEOUT = 30000; // 30 segundos
 
@@ -152,16 +155,36 @@ class AdminHttpClient {
       ...requestConfig
     } = config;
 
-    // Construir URL completa
-    const url = endpoint.startsWith('http') 
-      ? endpoint 
-      : `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    // Construir URL completa con normalización para evitar doble "/api"
+    let url: string;
+    if (endpoint.startsWith('http')) {
+      url = endpoint;
+    } else {
+      const base = (API_BASE_URL || '').replace(/\/+$/, '');
+      let path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
-    // Configurar headers
+      // Si el base termina en "/api" y el endpoint comienza con "/api",
+      // evitar duplicar el segmento "/api"
+      if (base.endsWith('/api') && /^\/api(?:\/|$)/.test(path)) {
+        path = path.replace(/^\/api/, '');
+        // Asegurar que path comience con '/'
+        if (!path.startsWith('/')) path = `/${path}`;
+      }
+
+      url = `${base}${path}`;
+    }
+
+    // Configurar headers sin forzar Content-Type por defecto
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
       ...requestConfig.headers,
     };
+
+    // Si el cuerpo es FormData, quitar Content-Type para que el navegador
+    // establezca correctamente el boundary de multipart
+    if (requestConfig.body instanceof FormData) {
+      // @ts-expect-error Mutation segura de objeto plano de headers
+      delete (headers as any)['Content-Type'];
+    }
 
     // Agregar token de autenticación si es necesario
     if (!skipAuth) {
@@ -176,6 +199,15 @@ class AdminHttpClient {
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
+      // Si el cuerpo es FormData, NO establecer Content-Type manualmente
+      const isFormDataBody = requestConfig.body instanceof FormData;
+      if (!isFormDataBody) {
+        // Para cuerpos no-FormData, si no se especificó Content-Type, asumir JSON
+        if (!('Content-Type' in (headers as any)) && requestConfig.body !== undefined) {
+          (headers as any)['Content-Type'] = 'application/json';
+        }
+      }
+
       const response = await fetch(url, {
         ...requestConfig,
         headers,
@@ -210,26 +242,29 @@ class AdminHttpClient {
   }
 
   async post<T = any>(endpoint: string, data?: any, config?: RequestConfig): Promise<T> {
+    const isForm = data instanceof FormData;
     return this.request<T>(endpoint, {
       ...config,
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
+      body: isForm ? data : (data ? JSON.stringify(data) : undefined),
     });
   }
 
   async put<T = any>(endpoint: string, data?: any, config?: RequestConfig): Promise<T> {
+    const isForm = data instanceof FormData;
     return this.request<T>(endpoint, {
       ...config,
       method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
+      body: isForm ? data : (data ? JSON.stringify(data) : undefined),
     });
   }
 
   async patch<T = any>(endpoint: string, data?: any, config?: RequestConfig): Promise<T> {
+    const isForm = data instanceof FormData;
     return this.request<T>(endpoint, {
       ...config,
       method: 'PATCH',
-      body: data ? JSON.stringify(data) : undefined,
+      body: isForm ? data : (data ? JSON.stringify(data) : undefined),
     });
   }
 

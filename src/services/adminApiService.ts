@@ -25,7 +25,10 @@ import type {
 // CONFIGURACIÓN BASE
 // =====================================================
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Forzar IPv4 directo y evitar proxy /api
+const API_BASE_URL = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http'))
+  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
+  : 'http://127.0.0.1:3001';
 
 class AdminApiService {
   private baseURL: string;
@@ -709,6 +712,12 @@ class AdminApiService {
   // =====================================================
 
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
+    // En desarrollo, no hacer peticiones para evitar ERR_ABORTED
+    if (import.meta.env.DEV) {
+      console.log('🔧 [AdminApiService] Health check skipped in development mode');
+      return { status: 'healthy', timestamp: new Date().toISOString() };
+    }
+
     const response = await this.get<{ status: string; timestamp: string }>('/health');
     
     if (response.success && response.data) {

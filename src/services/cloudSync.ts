@@ -153,10 +153,15 @@ export class CloudSyncService {
   // Verificar disponibilidad del backend
   private async checkBackendAvailability(): Promise<boolean> {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      
       const response = await fetch(`${this.config.apiBaseUrl}/health`, {
         method: 'GET',
-        signal: AbortSignal.timeout(2000) // 2 segundos timeout
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       return response.ok;
     } catch (error) {
       // Silenciar errores en modo desarrollo

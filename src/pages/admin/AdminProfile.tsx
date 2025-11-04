@@ -185,11 +185,7 @@ const AdminProfile: React.FC = () => {
       const formData = new FormData();
       formData.append('avatar', file);
       
-      const response = await adminHttpClient.post('/admin/profile/avatar', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const response = await adminHttpClient.upload('/admin/profile/avatar', formData);
       
       if (profile) {
         setProfile({ ...profile, avatar: response.avatarUrl });

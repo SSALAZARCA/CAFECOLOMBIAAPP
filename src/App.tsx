@@ -27,118 +27,19 @@ import AdminSecurity from "@/pages/admin/AdminSecurity";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminProfile from "@/pages/admin/AdminProfile";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
-import { offlineDB } from "./utils/offlineDB";
 import { PERMISSIONS } from "@/hooks/usePermissions";
-import { syncManager } from "./utils/syncManager";
-import { notificationManager } from "./utils/notificationManager";
-import { DEVICE_DETECTION } from "./utils/pwaConfig";
-import { initializeSampleData } from "./utils/sampleData";
-import { pushNotificationService } from "./services/pushNotificationService";
-import { cloudInitializer } from "./services/cloudInitializer";
 import NotificationCenter from "./components/NotificationCenter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ConnectionDebugPanel from "./components/debug/ConnectionDebugPanel";
 import { Toaster } from "sonner";
+import Configuracion from "@/pages/Configuracion";
 
 export default function App() {
   useEffect(() => {
-    // Inicializar PWA
-    const initializePWA = async () => {
-      try {
-        // Inicializar base de datos offline
-        await offlineDB.open();
-        console.log('✅ Base de datos offline inicializada');
-
-        // Inicializar datos de ejemplo
-        await initializeSampleData();
-
-        // Configurar Service Worker
-        if (DEVICE_DETECTION.supportsServiceWorker()) {
-          const registration = await navigator.serviceWorker.register('/sw.js');
-          console.log('✅ Service Worker registrado:', registration);
-
-          // Configurar sincronización en background
-          if (DEVICE_DETECTION.supportsBackgroundSync()) {
-            await syncManager.registerBackgroundSync();
-            console.log('✅ Background Sync configurado');
-          }
-
-          // Configurar notificaciones
-        if (DEVICE_DETECTION.supportsNotifications()) {
-          notificationManager.setupEventHandlers();
-          console.log('✅ Notificaciones configuradas');
-        }
-
-        // Inicializar servicios en la nube
-        try {
-          const initResult = await cloudInitializer.initialize();
-          if (initResult.success) {
-            console.log('✅ Servicios en la nube inicializados');
-            
-            // Inicializar notificaciones push
-            await pushNotificationService.initialize();
-            console.log('✅ Notificaciones push configuradas');
-          } else {
-            console.warn('⚠️ Algunos servicios en la nube no se pudieron inicializar:', initResult.errors);
-          }
-        } catch (error) {
-          console.warn('⚠️ Error inicializando servicios en la nube:', error);
-        }
-        }
-
-        // Configurar listeners para eventos de conexión
-        window.addEventListener('online', () => {
-          console.log('🌐 Conexión restaurada');
-          syncManager.handleConnectionRestored();
-        });
-
-        window.addEventListener('offline', () => {
-          console.log('📴 Conexión perdida');
-        });
-
-        // Configurar viewport para móviles
-        if (DEVICE_DETECTION.isMobile()) {
-          const viewport = document.querySelector('meta[name="viewport"]');
-          if (viewport) {
-            viewport.setAttribute('content', 
-              'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover'
-            );
-          }
-        }
-
-        // Prevenir zoom en iOS
-        if (DEVICE_DETECTION.isIOS()) {
-          document.addEventListener('gesturestart', (e) => {
-            e.preventDefault();
-          });
-        }
-
-        // Configurar tema para dispositivos
-        const themeColor = document.querySelector('meta[name="theme-color"]');
-        if (themeColor) {
-          themeColor.setAttribute('content', '#059669');
-        }
-
-      } catch (error) {
-        console.error('❌ Error inicializando PWA:', error);
-      }
-    };
-
-    initializePWA();
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('online', syncManager.handleConnectionRestored);
-    };
+    console.log('✅ Aplicación iniciada correctamente');
   }, []);
 
   return (
-    <ErrorBoundary 
-      onError={(error, errorInfo) => {
-        console.error('🚨 App-level error:', error);
-        console.error('📍 Error Info:', errorInfo);
-      }}
-    >
       <Router>
         <div className="relative">
           <Routes>
@@ -195,6 +96,11 @@ export default function App() {
             <Route path="/trazabilidad" element={
               <ErrorBoundary>
                 <Traceability />
+              </ErrorBoundary>
+            } />
+            <Route path="/configuracion" element={
+              <ErrorBoundary>
+                <Configuracion />
               </ErrorBoundary>
             } />
             <Route path="/other" element={<div className="text-center text-xl">Other Page - Coming Soon</div>} />
@@ -287,22 +193,18 @@ export default function App() {
             } />
           </Routes>
           
-          {/* Centro de Notificaciones con Error Boundary */}
-          <ErrorBoundary fallback={<div className="hidden" />}>
-            <NotificationCenter 
-              position="top-right"
-              maxVisible={5}
-              autoHide={true}
-            />
-          </ErrorBoundary>
-          
           {/* Toaster para notificaciones del admin */}
           <Toaster position="top-right" richColors />
           
-          {/* Panel de Debug de Conexión */}
-          <ConnectionDebugPanel />
+          {/* Panel de Debug de Conexión protegido para no derribar la UI */}
+          <ErrorBoundary fallback={<div className="hidden" />}
+            onError={(error) => {
+              console.warn('⚠️ ConnectionDebugPanel error capturado:', error);
+            }}
+          >
+            <ConnectionDebugPanel />
+          </ErrorBoundary>
         </div>
       </Router>
-    </ErrorBoundary>
   );
 }

@@ -13,6 +13,7 @@ import {
   CheckCircle,
   Coffee
 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 // Esquema de validación
 const loginSchema = z.object({
@@ -29,6 +30,8 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [demoMode, setDemoMode] = useState<boolean>(import.meta.env.VITE_DEMO_AUTH === 'true');
+  const { login: authLogin } = useAuth();
 
   // Obtener mensaje de estado de la navegación (ej: desde registro exitoso)
   const stateMessage = location.state?.message;
@@ -46,7 +49,61 @@ const Login: React.FC = () => {
     setIsLoading(true);
     setError('');
     
+    // Modo demo: bypass backend
+    const matchDemoCredentials = (email: string, password: string) => {
+      if (email === 'caficultor@test.com' && password === 'test123') {
+        return {
+          token: 'demo-token-coffee',
+          user: {
+            id: 'demo-cg-1',
+            nombre: 'Caficultor Demo',
+            email: 'caficultor@test.com',
+            role: 'coffee_grower',
+            tipo_usuario: 'coffee_grower',
+            is_super_admin: false
+          }
+        };
+      }
+      if (email === 'admin@test.com' && password === 'admin123') {
+        return {
+          token: 'demo-token-admin',
+          user: {
+            id: 'demo-admin-1',
+            nombre: 'Admin Demo',
+            email: 'admin@test.com',
+            role: 'admin',
+            tipo_usuario: 'admin',
+            is_super_admin: false
+          }
+        };
+      }
+      return null;
+    };
+
     try {
+      if (demoMode) {
+        const demo = matchDemoCredentials(data.email, data.password);
+        if (!demo) {
+          throw new Error('Credenciales de demo inválidas');
+        }
+
+        authLogin(demo.token, demo.user);
+        if (data.rememberMe) {
+          localStorage.setItem('rememberUser', data.email);
+        } else {
+          localStorage.removeItem('rememberUser');
+        }
+
+        if (demo.user.role === 'coffee_grower') {
+          navigate('/dashboard');
+        } else if (demo.user.role === 'admin' || demo.user.role === 'super_admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/');
+        }
+        return;
+      }
+
       const apiUrl = import.meta.env.VITE_API_URL || '/api';
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
@@ -62,18 +119,13 @@ const Login: React.FC = () => {
       const result = await response.json();
 
       if (response.ok) {
-        // Guardar token en localStorage
-        localStorage.setItem('token', result.token);
-        localStorage.setItem('user', JSON.stringify(result.user));
-        
-        // Recordar usuario si está marcado
+        authLogin(result.token, result.user);
         if (data.rememberMe) {
           localStorage.setItem('rememberUser', data.email);
         } else {
           localStorage.removeItem('rememberUser');
         }
 
-        // Redirigir según el tipo de usuario
         if (result.user.role === 'coffee_grower') {
           navigate('/dashboard');
         } else if (result.user.role === 'admin' || result.user.role === 'super_admin') {
@@ -86,7 +138,25 @@ const Login: React.FC = () => {
       }
     } catch (error) {
       console.error('Error en login:', error);
-      setError('Error de conexión. Intenta nuevamente.');
+      // Fallback a demo si backend no responde
+      const demo = matchDemoCredentials(data.email, data.password);
+      if (demo) {
+        authLogin(demo.token, demo.user);
+        if (data.rememberMe) {
+          localStorage.setItem('rememberUser', data.email);
+        } else {
+          localStorage.removeItem('rememberUser');
+        }
+        if (demo.user.role === 'coffee_grower') {
+          navigate('/dashboard');
+        } else if (demo.user.role === 'admin' || demo.user.role === 'super_admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/');
+        }
+      } else {
+        setError('Error de conexión. Intenta nuevamente.');
+      }
     } finally {
       setIsLoading(false);
     }

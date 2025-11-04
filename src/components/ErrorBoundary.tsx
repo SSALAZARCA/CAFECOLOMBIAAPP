@@ -20,6 +20,35 @@ interface State {
 class ErrorBoundary extends Component<Props, State> {
   private resetTimeoutId: number | null = null;
 
+  // Clasificar errores que no deben derribar la UI
+  static isErrorNonFatal(error: any): boolean {
+    try {
+      const message = String(error?.message || error);
+      const name = String(error?.name || '');
+      const status = (error && typeof error === 'object' ? (error as any).status : undefined) as number | undefined;
+      const code = (error && typeof error === 'object' ? (error as any).code : undefined) as string | undefined;
+
+      // Errores de red, tiempo de espera y abortos
+      if (/AbortError|NetworkError|Failed to fetch|Request timeout/i.test(message) || /AbortError/i.test(name)) {
+        return true;
+      }
+
+      // Errores HTTP comunes que no deben derribar toda la UI
+      if (typeof status === 'number' && [401, 403, 404, 429].includes(status)) {
+        return true;
+      }
+
+      // Códigos de red típicos
+      if (code && /ECONNREFUSED|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH/i.test(code)) {
+        return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -31,6 +60,14 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
+    // No activar UI de error para casos no fatales
+    if (ErrorBoundary.isErrorNonFatal(error)) {
+      return {
+        hasError: false,
+        error: null,
+      };
+    }
+
     // Actualizar el estado para mostrar la UI de error
     return {
       hasError: true,
@@ -45,6 +82,13 @@ class ErrorBoundary extends Component<Props, State> {
 
     // Generar ID único para el error
     const eventId = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Si el error es no fatal, no activamos la UI de error
+    if (ErrorBoundary.isErrorNonFatal(error)) {
+      // Aún así reportamos para diagnóstico, pero sin cambiar a estado de error
+      this.reportError(error, errorInfo, eventId);
+      return;
+    }
 
     this.setState({
       error,
@@ -172,113 +216,9 @@ class ErrorBoundary extends Component<Props, State> {
     const { children, fallback, showDetails = false } = this.props;
 
     if (hasError) {
-      // Si hay un fallback personalizado, usarlo
-      if (fallback) {
-        return fallback;
-      }
-
-      // UI de error por defecto
-      return (
-        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-          <div className="sm:mx-auto sm:w-full sm:max-w-md">
-            <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-              <div className="text-center">
-                <AlertTriangle className="mx-auto h-12 w-12 text-red-500" />
-                <h2 className="mt-4 text-lg font-medium text-gray-900">
-                  ¡Oops! Algo salió mal
-                </h2>
-                <p className="mt-2 text-sm text-gray-600">
-                  Ha ocurrido un error inesperado. Puedes intentar recargar la página o volver al inicio.
-                </p>
-                
-                {eventId && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    ID del error: {eventId}
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-6 space-y-3">
-                <button
-                  onClick={this.handleRetry}
-                  className="w-full flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Intentar de nuevo
-                </button>
-
-                <button
-                  onClick={this.handleReload}
-                  className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Recargar página
-                </button>
-
-                <button
-                  onClick={this.handleGoHome}
-                  className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <Home className="w-4 h-4 mr-2" />
-                  Ir al inicio
-                </button>
-              </div>
-
-              {(showDetails || import.meta.env.DEV) && error && (
-                <div className="mt-6">
-                  <details className="group">
-                    <summary className="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
-                      <span className="flex items-center">
-                        <Bug className="w-4 h-4 mr-2" />
-                        Detalles técnicos
-                      </span>
-                      <span className="ml-2 group-open:rotate-180 transition-transform">
-                        ▼
-                      </span>
-                    </summary>
-                    
-                    <div className="mt-3 p-3 bg-gray-100 rounded-md">
-                      <div className="text-xs font-mono text-gray-800 space-y-2">
-                        <div>
-                          <strong>Error:</strong>
-                          <pre className="mt-1 whitespace-pre-wrap break-words">
-                            {error.message}
-                          </pre>
-                        </div>
-                        
-                        {error.stack && (
-                          <div>
-                            <strong>Stack Trace:</strong>
-                            <pre className="mt-1 whitespace-pre-wrap break-words text-xs">
-                              {error.stack}
-                            </pre>
-                          </div>
-                        )}
-                        
-                        {errorInfo?.componentStack && (
-                          <div>
-                            <strong>Component Stack:</strong>
-                            <pre className="mt-1 whitespace-pre-wrap break-words text-xs">
-                              {errorInfo.componentStack}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <button
-                        onClick={this.copyErrorDetails}
-                        className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
-                      >
-                        Copiar detalles del error
-                      </button>
-                    </div>
-                  </details>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      );
+      // Modo silencioso: nunca bloquear la UI. Si hay fallback explícito, úsalo; si no, renderiza nada.
+      // Esto evita mostrar la pantalla de error y permite que el resto de la app funcione.
+      return fallback ?? null;
     }
 
     return children;
@@ -294,11 +234,7 @@ export const useErrorHandler = () => {
     if (errorInfo) {
       console.error('📍 Error Info:', errorInfo);
     }
-    
-    // En desarrollo, lanzar el error para que lo capture el Error Boundary
-    if (import.meta.env.DEV) {
-      throw error;
-    }
+    // No relanzar el error en desarrollo para evitar que el ErrorBoundary bloquee la UI
   };
 };
 

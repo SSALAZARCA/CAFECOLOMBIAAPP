@@ -267,14 +267,22 @@ const RiskAssessmentDashboard: React.FC<RiskAssessmentDashboardProps> = ({
         
         // Intentar obtener datos en tiempo real con timeout agresivo
         try {
+          const controller1 = new AbortController();
+          const controller2 = new AbortController();
+          const timeoutId1 = setTimeout(() => controller1.abort(), 2000);
+          const timeoutId2 = setTimeout(() => controller2.abort(), 2000);
+          
           const [weatherResponse, forecastResponse] = await Promise.all([
             fetch('https://api.openweathermap.org/data/2.5/weather?q=Manizales,CO&appid=demo&units=metric', {
-              signal: AbortSignal.timeout(2000)
+              signal: controller1.signal
             }),
             fetch('https://api.openweathermap.org/data/2.5/forecast?q=Manizales,CO&appid=demo&units=metric', {
-              signal: AbortSignal.timeout(2000)
+              signal: controller2.signal
             })
           ]);
+          
+          clearTimeout(timeoutId1);
+          clearTimeout(timeoutId2);
           
           if (weatherResponse.ok && forecastResponse.ok) {
             console.log('🌤️ [Dashboard] Datos meteorológicos obtenidos exitosamente');

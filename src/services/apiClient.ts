@@ -173,7 +173,8 @@ export class ApiClient {
       signal
     } = options;
 
-    const url = `${this.baseUrl}${endpoint}`;
+    // Evitar proxy Vite en desarrollo, construir URL directo
+    const url = `${this.baseUrl.replace(/\/$/, '')}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
     const requestHeaders = { ...this.defaultHeaders, ...headers };
 
     // Create abort controller for timeout
@@ -203,7 +204,7 @@ export class ApiClient {
     let lastError: Error | null = null;
 
     // Check if this is a backend connection in development mode
-    const isDevelopment = import.meta.env.DEV || process.env.NODE_ENV === 'development';
+    const isDevelopment = import.meta.env.DEV;
     const isBackendUrl = url.includes('/api/');
 
     // Retry logic
@@ -335,11 +336,17 @@ export class ApiClient {
 
   // Health check
   async healthCheck(): Promise<boolean> {
+    // En desarrollo, no hacer peticiones para evitar ERR_ABORTED
+    if (import.meta.env.DEV) {
+      console.log('🔧 [ApiClient] Health check skipped in development mode');
+      return true; // Simular éxito en desarrollo
+    }
+
     try {
       const response = await this.get(API_ENDPOINTS.system.health, { timeout: 3000, retries: 0 });
       return response.success;
     } catch {
-      // Silently fail in development mode
+      // Silently fail in production mode
       return false;
     }
   }

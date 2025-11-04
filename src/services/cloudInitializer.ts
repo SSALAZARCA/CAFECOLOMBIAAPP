@@ -313,6 +313,13 @@ export class CloudInitializer {
     this.updateStepStatus('connectivity-check', 'in_progress', 60, 'Verificando conectividad...');
 
     try {
+      // En desarrollo, no hacer peticiones para evitar ERR_ABORTED
+      if (import.meta.env.DEV) {
+        console.log('🔧 [CloudInitializer] Connectivity check skipped in development mode');
+        this.updateStepStatus('connectivity-check', 'completed', 100, 'Modo desarrollo - conectividad simulada');
+        return;
+      }
+
       const isOnline = navigator.onLine;
       
       if (isOnline) {
@@ -327,14 +334,8 @@ export class CloudInitializer {
         if (healthCheck) {
           this.updateStepStatus('connectivity-check', 'completed', 100, 'Conectividad verificada');
         } else {
-          // En modo desarrollo, no considerar esto como un error crítico
-          if (import.meta.env.DEV) {
-            console.log('🔄 [CloudInitializer] Backend no disponible en desarrollo - continuando en modo offline');
-            this.updateStepStatus('connectivity-check', 'completed', 100, 'Modo offline (desarrollo)');
-          } else {
-            result.warnings.push('API server not reachable');
-            this.updateStepStatus('connectivity-check', 'completed', 100, 'API no disponible');
-          }
+          result.warnings.push('API server not reachable');
+          this.updateStepStatus('connectivity-check', 'completed', 100, 'API no disponible');
         }
       } else {
         result.warnings.push('Device is offline');

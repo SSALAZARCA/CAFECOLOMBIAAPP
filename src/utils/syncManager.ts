@@ -380,7 +380,7 @@ export class SyncManager {
         lastError = error instanceof Error ? error : new Error('Error desconocido');
         
         // Silenciar errores de conexión en modo desarrollo
-        const isDevelopment = import.meta.env.DEV || process.env.NODE_ENV === 'development';
+        const isDevelopment = import.meta.env.DEV;
         const isConnectionError = error instanceof Error && (
           error.message.includes('ERR_CONNECTION_REFUSED') ||
           error.message.includes('Failed to fetch') ||
@@ -457,7 +457,7 @@ export class SyncManager {
   // Registrar background sync
   private async registerBackgroundSync(): Promise<void> {
     // Skip background sync registration in development mode
-    const isDevelopment = import.meta.env.DEV || process.env.NODE_ENV === 'development';
+    const isDevelopment = import.meta.env.DEV;
     if (isDevelopment) {
       console.log('[SyncManager] Background sync disabled in development mode');
       return;

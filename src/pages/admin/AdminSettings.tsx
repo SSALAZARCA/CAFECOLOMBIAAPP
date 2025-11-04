@@ -135,8 +135,8 @@ export default function AdminSettings() {
       const data = await response.json();
       console.log('🔧 DEBUG AdminSettings - Datos extraídos:', data);
       
-      // El backend devuelve directamente los datos agrupados
-      const settingsData = data;
+      // El backend devuelve { success, data }; usar data si existe
+      const settingsData = (data && data.data) ? data.data : data;
       console.log('🔧 DEBUG AdminSettings - Configuraciones formateadas:', settingsData);
         
       if (!settingsData) {
@@ -228,20 +228,18 @@ export default function AdminSettings() {
           estimatedDuration: settingsData.maintenance?.estimated_duration?.value || ''
         }
       };
-      
-      console.log('✅ Configuraciones formateadas:', formattedSettings);
+
       setSettings(formattedSettings);
-    } catch (error) {
-      console.error('💥 Error fetching settings:', error);
-      toast.error('Error de conexión');
+      toast.success('Configuraciones cargadas correctamente');
+    } catch (error: any) {
+      console.error('Error cargando configuraciones:', error);
+      toast.error(error.message || 'Error al cargar configuraciones');
     } finally {
-      console.log('🏁 Finalizando fetchSettings, loading = false');
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    console.log('🔄 useEffect ejecutándose, llamando fetchSettings...');
     fetchSettings();
   }, []);
 

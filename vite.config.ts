@@ -133,9 +133,11 @@ export default defineConfig(({ command, mode }) => {
     include: ['react', 'react-dom', 'react-router-dom']
   },
   server: {
+    host: '127.0.0.1',
+    strictPort: true,
     proxy: {
       '/api': {
-        target: env.VITE_API_URL || 'http://localhost:3001',
+        target: env.VITE_API_URL || 'http://127.0.0.1:3001',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {

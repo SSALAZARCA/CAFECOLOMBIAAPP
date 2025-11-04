@@ -39,8 +39,8 @@ export const AdminApiTest: React.FC = () => {
       let response;
       
       if (endpoint === '/api/health') {
-        // Test health endpoint without auth
-        response = await fetch('/api/health');
+        // Usar cliente admin para construir URL absoluta
+        response = await adminHttpClient.get('/api/health');
       } else {
         // Test authenticated endpoints
         response = await adminHttpClient.get(endpoint);

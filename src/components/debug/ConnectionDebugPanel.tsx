@@ -33,6 +33,27 @@ export const ConnectionDebugPanel: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Solo mostrar en desarrollo o cuando se presiona Ctrl+Shift+D
+  // Importante: los hooks deben ejecutarse SIEMPRE en el mismo orden.
+  // Por eso estos efectos se declaran ANTES de cualquier return condicional.
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        setIsVisible(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
+  // Auto-mostrar en desarrollo cuando haya información disponible
+  useEffect(() => {
+    if (debugInfo?.isDevelopment) {
+      setIsVisible(true);
+    }
+  }, [debugInfo?.isDevelopment]);
+
   const testAllUrls = async () => {
     if (!debugInfo) return;
     
@@ -84,29 +105,15 @@ export const ConnectionDebugPanel: React.FC = () => {
   };
 
   const forceHealthCheck = async () => {
+    // En desarrollo, no hacer peticiones para evitar ERR_ABORTED
+    if (import.meta.env.DEV) {
+      console.log('🔧 Force health check skipped in development mode');
+      return;
+    }
     await backendConnectionService.checkHealth();
   };
 
   if (!debugInfo) return null;
-
-  // Solo mostrar en desarrollo o cuando se presiona Ctrl+Shift+D
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-        setIsVisible(!isVisible);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isVisible]);
-
-  // Auto-mostrar en desarrollo
-  useEffect(() => {
-    if (debugInfo.isDevelopment) {
-      setIsVisible(true);
-    }
-  }, [debugInfo.isDevelopment]);
 
   if (!isVisible) {
     return (

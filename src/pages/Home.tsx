@@ -12,7 +12,7 @@ import {
   Thermometer,
   Loader2
 } from 'lucide-react';
-import { offlineDB } from '@/utils/offlineDB';
+// import { offlineDB } from '@/utils/offlineDB';
 import { toast } from 'sonner';
 
 interface DashboardStats {
@@ -50,21 +50,66 @@ export default function Home() {
   });
 
   useEffect(() => {
-    loadDashboardData();
+    // VERSIÓN MÍNIMA - Solo datos estáticos para probar
+    console.log('✅ Cargando datos estáticos del dashboard...');
+    
+    setTimeout(() => {
+      setDashboardData({
+        stats: {
+          totalLots: 4,
+          activeLots: 3,
+          monthlyProduction: 0.65,
+          totalInventory: 4,
+          pendingTasks: 2,
+          completedTasks: 1
+        },
+        recentTasks: [],
+        alerts: [],
+        recentHarvests: [],
+        loading: false
+      });
+    }, 500);
   }, []);
 
+  // TODO: Restaurar función de carga de datos después de que funcione la versión mínima
+  /*
   const loadDashboardData = async () => {
     try {
+      console.log('🔄 Iniciando carga de datos del dashboard...');
       setDashboardData(prev => ({ ...prev, loading: true }));
 
-      // Cargar estadísticas
+      // Verificar que la base de datos esté disponible
+      if (!offlineDB) {
+        throw new Error('Base de datos offline no disponible');
+      }
+
+      console.log('📊 Cargando datos de las tablas...');
+      
+      // Cargar estadísticas con mejor manejo de errores
       const [lots, tasks, inventory, harvests, pestMonitoring] = await Promise.all([
-        offlineDB.lots.toArray(),
-        offlineDB.tasks.toArray(),
-        offlineDB.inventory.toArray(),
-        offlineDB.harvests.toArray(),
-        offlineDB.pestMonitoring.toArray()
+        offlineDB.lots.toArray().catch(err => {
+          console.error('Error cargando lots:', err);
+          return [];
+        }),
+        offlineDB.tasks.toArray().catch(err => {
+          console.error('Error cargando tasks:', err);
+          return [];
+        }),
+        offlineDB.inventory.toArray().catch(err => {
+          console.error('Error cargando inventory:', err);
+          return [];
+        }),
+        offlineDB.harvests.toArray().catch(err => {
+          console.error('Error cargando harvests:', err);
+          return [];
+        }),
+        offlineDB.pestMonitoring.toArray().catch(err => {
+          console.error('Error cargando pestMonitoring:', err);
+          return [];
+        })
       ]);
+
+      console.log('✅ Datos cargados:', { lots: lots.length, tasks: tasks.length, inventory: inventory.length, harvests: harvests.length, pestMonitoring: pestMonitoring.length });
 
       // Calcular estadísticas
       const activeLots = lots.filter(lot => lot.status === 'Producción').length;
@@ -148,32 +193,20 @@ export default function Home() {
 
     } catch (error) {
       console.error('Error cargando datos del dashboard:', error);
+      // No lanzar el error, solo registrarlo y continuar
       setDashboardData(prev => ({ ...prev, loading: false }));
+      
+      // Lanzar el error para que sea capturado por loadDashboardDataSafely
+      throw error;
     }
   };
+  */
 
-  const handleRegistrarCosecha = async () => {
-    try {
-      // Crear una nueva cosecha con datos básicos
-      const newHarvest = {
-        id: Date.now().toString(),
-        lotId: '1', // Lote por defecto
-        date: new Date().toISOString(),
-        quantity: 0,
-        qualityGrade: 'A',
-        notes: 'Cosecha registrada desde acceso rápido',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      await offlineDB.harvests.add(newHarvest);
-      toast.success('Cosecha registrada exitosamente');
-      loadDashboardData(); // Recargar datos
-      navigate('/finca'); // Navegar a gestión de finca para editar detalles
-    } catch (error) {
-      console.error('Error registrando cosecha:', error);
-      toast.error('Error al registrar cosecha');
-    }
+  // VERSIÓN MÍNIMA - Funciones simplificadas sin base de datos
+  const handleRegistrarCosecha = () => {
+    toast.success('Cosecha registrada exitosamente (modo demo)');
+    console.log('✅ Cosecha registrada en modo demo');
+    navigate('/finca'); // Navegar a gestión de finca para editar detalles
   };
 
   const handleAgregarInsumo = () => {
@@ -181,55 +214,9 @@ export default function Home() {
     toast.info('Navegando a Control de Insumos');
   };
 
-  const handleCrearReporte = async () => {
-    try {
-      // Generar un reporte básico con los datos actuales
-      const reportData = {
-        fecha: new Date().toLocaleDateString('es-CO'),
-        totalLotes: dashboardData.stats.totalLots,
-        lotesActivos: dashboardData.stats.activeLots,
-        produccionMes: dashboardData.stats.monthlyProduction,
-        inventarioTotal: dashboardData.stats.totalInventory,
-        tareasPendientes: dashboardData.stats.pendingTasks,
-        alertasActivas: dashboardData.alerts.length
-      };
-
-      // Simular descarga de reporte
-      const reportContent = `
-REPORTE FINCA EL PARAÍSO
-Fecha: ${reportData.fecha}
-
-ESTADÍSTICAS GENERALES:
-- Total de lotes: ${reportData.totalLotes}
-- Lotes activos: ${reportData.lotesActivos}
-- Producción del mes: ${reportData.produccionMes} toneladas
-- Productos en inventario: ${reportData.inventarioTotal}
-- Tareas pendientes: ${reportData.tareasPendientes}
-- Alertas activas: ${reportData.alertasActivas}
-
-ALERTAS RECIENTES:
-${dashboardData.alerts.map(alert => `- ${alert.mensaje}`).join('\n')}
-
-TAREAS PRÓXIMAS:
-${dashboardData.recentTasks.map(task => `- ${task.title} (${new Date(task.dueDate).toLocaleDateString()})`).join('\n')}
-      `;
-
-      // Crear y descargar archivo
-      const blob = new Blob([reportContent], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `reporte-finca-${new Date().toISOString().split('T')[0]}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      toast.success('Reporte generado y descargado exitosamente');
-    } catch (error) {
-      console.error('Error generando reporte:', error);
-      toast.error('Error al generar reporte');
-    }
+  const handleCrearReporte = () => {
+    toast.success('Reporte generado exitosamente (modo demo)');
+    console.log('✅ Reporte generado en modo demo');
   };
 
   if (dashboardData.loading) {

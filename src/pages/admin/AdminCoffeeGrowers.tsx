@@ -58,15 +58,46 @@ export default function AdminCoffeeGrowers() {
   const [exportImportModalOpen, setExportImportModalOpen] = useState(false);
   const [exportImportMode, setExportImportMode] = useState<'export' | 'import'>('export');
 
+  const mapBackendGrowerToUI = (g: any): CoffeeGrower => {
+    const fullName: string = g.full_name || '';
+    const [firstName, ...rest] = fullName.split(' ');
+    const lastName = rest.join(' ');
+    return {
+      id: String(g.id),
+      userId: String(g.user_id || g.id),
+      firstName: firstName || g.first_name || '',
+      lastName: lastName || g.last_name || '',
+      email: g.email || '',
+      phone: g.phone || '',
+      documentType: (g.identification_type || 'cedula') as any,
+      documentNumber: g.identification_number || '',
+      address: g.address || '',
+      city: g.municipality || '',
+      department: g.department || '',
+      country: 'Colombia',
+      farmCount: g.farms_count ?? 0,
+      totalHectares: g.total_area ?? 0,
+      certifications: g.certification_type ? [g.certification_type] : [],
+      registrationDate: g.created_at || '',
+      status: (g.status || 'active') as any,
+      rating: g.quality_score ?? 0,
+      totalProduction: g.annual_production ?? 0,
+      lastActivity: g.updated_at || g.created_at || ''
+    };
+  };
+
   const fetchGrowers = async () => {
     try {
       setLoading(true);
       const response = await useAuthenticatedFetch('/admin/coffee-growers');
       if (response.ok) {
-        const data = await response.json();
-        setGrowers(data.growers || []);
+        const payload = await response.json();
+        const list = payload?.data?.data || payload?.data || [];
+        const mapped = Array.isArray(list) ? list.map(mapBackendGrowerToUI) : [];
+        setGrowers(mapped);
       } else {
-        toast.error('Error al cargar caficultores');
+        const err = await response.json().catch(() => ({}));
+        toast.error(err?.message || 'Error al cargar caficultores');
       }
     } catch (error) {
       console.error('Error fetching growers:', error);
@@ -82,10 +113,10 @@ export default function AdminCoffeeGrowers() {
 
   const filteredGrowers = growers.filter(grower => {
     const matchesSearch = 
-      grower.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      grower.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      grower.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      grower.documentNumber.includes(searchTerm);
+      (grower.firstName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (grower.lastName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (grower.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (grower.documentNumber || '').includes(searchTerm);
     
     const matchesStatus = filterStatus === 'all' || grower.status === filterStatus;
     const matchesDepartment = filterDepartment === 'all' || grower.department === filterDepartment;
@@ -105,7 +136,8 @@ export default function AdminCoffeeGrowers() {
         setGrowers(growers.filter(grower => grower.id !== growerId));
         toast.success('Cafetalero eliminado exitosamente');
       } else {
-        toast.error('Error al eliminar cafetalero');
+        const err = await response.json().catch(() => ({}));
+        toast.error(err?.message || 'Error al eliminar cafetalero');
       }
     } catch (error) {
       console.error('Error deleting grower:', error);
@@ -127,7 +159,8 @@ export default function AdminCoffeeGrowers() {
         ));
         toast.success('Estado actualizado exitosamente');
       } else {
-        toast.error('Error al actualizar estado');
+        const err = await response.json().catch(() => ({}));
+        toast.error(err?.message || 'Error al actualizar estado');
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -218,10 +251,7 @@ export default function AdminCoffeeGrowers() {
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`h-4 w-4 ${i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
-      />
+      <Star key={i} className={`h-4 w-4 ${i < Math.round(rating) ? 'text-amber-500' : 'text-gray-300'}`} />
     ));
   };
 
@@ -279,224 +309,140 @@ export default function AdminCoffeeGrowers() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar caficultores..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Buscar por nombre, email o documento"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
               />
             </div>
           </div>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-          >
-            <option value="all">Todos los estados</option>
-            <option value="active">Activo</option>
-            <option value="inactive">Inactivo</option>
-            <option value="pending_verification">Pendiente verificación</option>
-          </select>
-          <select
-            value={filterDepartment}
-            onChange={(e) => setFilterDepartment(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-          >
-            <option value="all">Todos los departamentos</option>
-            <option value="Antioquia">Antioquia</option>
-            <option value="Caldas">Caldas</option>
-            <option value="Quindío">Quindío</option>
-            <option value="Risaralda">Risaralda</option>
-            <option value="Huila">Huila</option>
-            <option value="Nariño">Nariño</option>
-            <option value="Tolima">Tolima</option>
-            <option value="Cauca">Cauca</option>
-          </select>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Estado</label>
+            <select
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+              className="mt-1 block w-48 border border-gray-300 rounded-lg py-2 px-3"
+            >
+              <option value="all">Todos</option>
+              <option value="active">Activo</option>
+              <option value="inactive">Inactivo</option>
+              <option value="pending_verification">Pendiente verificación</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Departamento</label>
+            <select
+              value={filterDepartment}
+              onChange={e => setFilterDepartment(e.target.value)}
+              className="mt-1 block w-56 border border-gray-300 rounded-lg py-2 px-3"
+            >
+              <option value="all">Todos</option>
+              <option value="Antioquia">Antioquia</option>
+              <option value="Caldas">Caldas</option>
+              <option value="Quindío">Quindío</option>
+              <option value="Risaralda">Risaralda</option>
+              <option value="Huila">Huila</option>
+              <option value="Nariño">Nariño</option>
+              <option value="Tolima">Tolima</option>
+              <option value="Cauca">Cauca</option>
+              <option value="Valle del Cauca">Valle del Cauca</option>
+              <option value="Cundinamarca">Cundinamarca</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Growers Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <input
-                    type="checkbox"
-                    checked={selectedGrowers.length === filteredGrowers.length}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedGrowers(filteredGrowers.map(g => g.id));
-                      } else {
-                        setSelectedGrowers([]);
-                      }
-                    }}
-                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Cafetalero
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ubicación
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Fincas
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Producción
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Calificación
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredGrowers.map((grower) => (
-                <tr key={grower.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      checked={selectedGrowers.includes(grower.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedGrowers([...selectedGrowers, grower.id]);
-                        } else {
-                          setSelectedGrowers(selectedGrowers.filter(id => id !== grower.id));
-                        }
-                      }}
-                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                        <Coffee className="h-5 w-5 text-emerald-600" />
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {grower.firstName} {grower.lastName}
-                        </div>
-                        <div className="text-sm text-gray-500">{grower.email}</div>
-                        <div className="text-xs text-gray-400">{grower.documentNumber}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <MapPin className="h-4 w-4 text-gray-400 mr-1" />
-                      <div>
-                        <div>{grower.city}</div>
-                        <div className="text-xs text-gray-500">{grower.department}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      <div>{grower.farmCount} fincas</div>
-                      <div className="text-xs text-gray-500">{grower.totalHectares} ha</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {grower.totalProduction.toLocaleString()} kg/año
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {renderStars(grower.rating)}
-                      <span className="ml-2 text-sm text-gray-600">({grower.rating})</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(grower.status)}`}>
-                      {getStatusText(grower.status)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEditGrower(grower)}
-                        className="text-emerald-600 hover:text-emerald-900"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button className="text-blue-600 hover:text-blue-900">
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteGrower(grower.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Growers List */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        {selectedGrowers.length > 0 && (
+          <BulkActionsBar
+            selectedCount={selectedGrowers.length}
+            onApprove={() => handleBulkAction('approve', selectedGrowers)}
+            onArchive={() => handleBulkAction('archive', selectedGrowers)}
+            onDelete={() => handleBulkAction('delete', selectedGrowers)}
+            onExport={() => handleBulkAction('export', selectedGrowers)}
+          />
+        )}
+
+        <div className="divide-y divide-gray-200">
+          {filteredGrowers.map(grower => (
+            <div key={grower.id} className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <Coffee className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-gray-900">{grower.firstName} {grower.lastName}</h3>
+                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(grower.status)}`}>{getStatusText(grower.status)}</span>
+                  </div>
+                  <div className="text-sm text-gray-600 flex items-center gap-3 mt-1">
+                    <span className="flex items-center gap-1"><Mail className="h-4 w-4" /> {grower.email}</span>
+                    <span className="flex items-center gap-1"><Phone className="h-4 w-4" /> {grower.phone}</span>
+                    <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {grower.city}, {grower.department}</span>
+                    <span className="flex items-center gap-1"><Calendar className="h-4 w-4" /> Reg: {new Date(grower.registrationDate).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1">
+                  {renderStars(Math.round(grower.rating || 0))}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {grower.farmCount} fincas · {grower.totalHectares} ha · {grower.totalProduction} kg/año
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEditGrower(grower)}
+                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" /> Editar
+                  </button>
+                  <button
+                    onClick={() => handleDeleteGrower(grower.id)}
+                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" /> Eliminar
+                  </button>
+                  <button
+                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Eye className="h-4 w-4" /> Ver Perfil
+                  </button>
+                  <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {filteredGrowers.length === 0 && (
+            <div className="p-6 text-center text-gray-500">No hay caficultores para mostrar</div>
+          )}
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="text-2xl font-bold text-gray-900">{growers.length}</div>
-          <div className="text-sm text-gray-500">Total caficultores</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="text-2xl font-bold text-green-600">
-            {growers.filter(g => g.status === 'active').length}
-          </div>
-          <div className="text-sm text-gray-500">Activos</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="text-2xl font-bold text-blue-600">
-            {growers.reduce((sum, g) => sum + g.farmCount, 0)}
-          </div>
-          <div className="text-sm text-gray-500">Total fincas</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="text-2xl font-bold text-purple-600">
-            {growers.reduce((sum, g) => sum + g.totalHectares, 0).toLocaleString()}
-          </div>
-          <div className="text-sm text-gray-500">Hectáreas totales</div>
-        </div>
-      </div>
-
-      {/* Bulk Actions Bar */}
-      {selectedGrowers.length > 0 && (
-        <BulkActionsBar
-          selectedItems={selectedGrowers}
-          onClearSelection={() => setSelectedGrowers([])}
-          entityType="farms"
-          onBulkAction={handleBulkAction}
+      {/* Modals */}
+      {showGrowerModal && (
+        <CoffeeGrowerModal 
+          isOpen={showGrowerModal} 
+          onClose={handleCloseModal}
+          grower={editingGrower}
+          onSave={handleGrowerSave}
         />
       )}
 
-      {/* CoffeeGrowerModal */}
-      <CoffeeGrowerModal
-        isOpen={showGrowerModal}
-        onClose={handleCloseModal}
-        grower={editingGrower}
-        onSave={handleGrowerSave}
-      />
-
-      {/* Export/Import Modal */}
-      <ExportImportModal
-        isOpen={exportImportModalOpen}
-        onClose={() => setExportImportModalOpen(false)}
-        mode={exportImportMode}
-        entityType="farms"
-        selectedIds={selectedGrowers}
-      />
+      {exportImportModalOpen && (
+        <ExportImportModal 
+          isOpen={exportImportModalOpen}
+          mode={exportImportMode}
+          onClose={() => setExportImportModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

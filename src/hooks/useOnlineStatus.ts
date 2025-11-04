@@ -24,7 +24,7 @@ export const useOnlineStatus = () => {
       return 'offline';
     }
 
-    const isDevelopment = import.meta.env.DEV || process.env.NODE_ENV === 'development';
+    const isDevelopment = import.meta.env.DEV;
     
     // In development mode, use a simple connection check without external requests
     if (isDevelopment) {
@@ -46,22 +46,9 @@ export const useOnlineStatus = () => {
       return navigator.onLine ? 'good' : 'offline';
     }
 
-    // In production, try to ping the API
-    try {
-      const start = Date.now();
-      const response = await fetch('/api/ping', {
-        method: 'HEAD',
-        cache: 'no-cache'
-      });
-      const duration = Date.now() - start;
-
-      if (response.ok) {
-        return duration < 1000 ? 'good' : 'poor';
-      }
-      return 'poor';
-    } catch (error) {
-      return 'offline';
-    }
+    // TEMPORALMENTE DESACTIVADO: En producción, usar solo navigator.onLine
+    // para evitar el error net::ERR_ABORTED con /api/ping
+    return navigator.onLine ? 'good' : 'offline';
   }, []);
 
   // Actualizar contador de elementos pendientes de sincronización
@@ -97,8 +84,12 @@ export const useOnlineStatus = () => {
     // Actualizar contador de sincronización
     await updatePendingSyncCount();
 
-    // Disparar evento personalizado para sincronización
-    window.dispatchEvent(new CustomEvent('connection-restored'));
+    // Disparar evento personalizado para sincronización (solo en producción)
+    if (import.meta.env.MODE !== 'development') {
+      window.dispatchEvent(new CustomEvent('connection-restored'));
+    } else {
+      console.log('🔧 Modo desarrollo: evento connection-restored no disparado');
+    }
   }, [checkConnectionQuality, updatePendingSyncCount]);
 
   // Manejar cambio de estado offline
@@ -148,12 +139,14 @@ export const useOnlineStatus = () => {
   }, [status.isOnline, updatePendingSyncCount]);
 
   useEffect(() => {
+    const isDevelopment = import.meta.env.DEV;
+    
     // Listeners para eventos de conexión
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Verificar estado inicial
-    if (navigator.onLine) {
+    // Verificar estado inicial solo en producción
+    if (navigator.onLine && !isDevelopment) {
       checkConnectionQuality().then(quality => {
         setStatus(prev => ({
           ...prev,
@@ -165,22 +158,27 @@ export const useOnlineStatus = () => {
     // Actualizar contador inicial
     updatePendingSyncCount();
 
-    // Verificar conexión periódicamente
-    const intervalId = setInterval(async () => {
-      if (navigator.onLine) {
-        const quality = await checkConnectionQuality();
-        setStatus(prev => ({
-          ...prev,
-          connectionQuality: quality
-        }));
-      }
-      await updatePendingSyncCount();
-    }, 30000); // Cada 30 segundos
+    // Verificar conexión periódicamente solo en producción
+    let intervalId: NodeJS.Timeout | null = null;
+    if (!isDevelopment) {
+      intervalId = setInterval(async () => {
+        if (navigator.onLine) {
+          const quality = await checkConnectionQuality();
+          setStatus(prev => ({
+            ...prev,
+            connectionQuality: quality
+          }));
+        }
+        await updatePendingSyncCount();
+      }, 30000); // Cada 30 segundos
+    }
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      clearInterval(intervalId);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, [handleOnline, handleOffline, checkConnectionQuality, updatePendingSyncCount]);
 
