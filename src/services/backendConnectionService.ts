@@ -33,10 +33,15 @@ class BackendConnectionService {
 
   // URLs de fallback para diferentes entornos
   private baseUrls = [
-    // Usar sólo URLs IPv4 directas para evitar el proxy de Vite y problemas con ::1
-    (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http'))
-      ? import.meta.env.VITE_API_URL.replace(/\/$/, '') + '/api'
-      : 'http://127.0.0.1:3001/api',
+    // Construir base /api con robustez: si VITE_API_URL ya termina en /api, usar tal cual; si no, agregar /api
+    (() => {
+      const raw = import.meta.env.VITE_API_URL;
+      if (raw && raw.startsWith('http')) {
+        const normalized = raw.replace(/\/$/, '');
+        return normalized.endsWith('/api') ? normalized : `${normalized}/api`;
+      }
+      return `${window.location.origin.replace(/\/$/, '')}/api`;
+    })(),
     'http://127.0.0.1:3001/api'
   ].filter((url, index, arr) => arr.indexOf(url) === index);
 

@@ -28,7 +28,7 @@ import type {
 // Forzar IPv4 directo y evitar proxy /api
 const API_BASE_URL = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http'))
   ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
-  : 'http://127.0.0.1:3001';
+  : `${window.location.origin.replace(/\/$/, '')}/api`;
 
 class AdminApiService {
   private baseURL: string;
