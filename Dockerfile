@@ -78,12 +78,11 @@ ENV HOST=0.0.0.0
 RUN mkdir -p /app/uploads /app/logs /app/backups
 RUN chown -R cafeapp:nodejs /app
 
-# Copiar archivos necesarios
+# Copiar archivos necesarios (no copiar api/.env en producción)
 COPY --from=builder --chown=cafeapp:nodejs /app/dist ./dist
 COPY --from=builder --chown=cafeapp:nodejs /app/api/dist ./api/dist
 COPY --from=builder --chown=cafeapp:nodejs /app/api/*.cjs ./api/
 COPY --from=builder --chown=cafeapp:nodejs /app/api/routes/*.cjs ./api/routes/
-COPY --from=builder --chown=cafeapp:nodejs /app/api/.env ./api/.env
 COPY --from=deps-prod --chown=cafeapp:nodejs /app/node_modules ./node_modules
 COPY --from=deps-prod --chown=cafeapp:nodejs /app/api/node_modules ./api/node_modules
 
@@ -102,9 +101,9 @@ USER cafeapp
 # Exponer puerto
 EXPOSE 3001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3001/api/health || exit 1
+# Health check (independiente de la DB)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -fsS http://localhost:3001/api/ping || exit 1
 
 # Comando por defecto
 CMD ["pm2-runtime", "start", "ecosystem.config.cjs", "--env", "production"]
