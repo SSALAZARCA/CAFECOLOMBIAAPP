@@ -15,6 +15,10 @@ COPY build-coolify.cjs ./
 COPY . .
 
 # Instalar dependencias y ejecutar build automático
+# Instalar utilidades necesarias para healthcheck
+RUN apk add --no-cache curl
+
+# Build de la aplicación
 RUN npm run coolify:build
 
 # Exponer puerto
@@ -28,8 +32,8 @@ ENV PORT=3001
 CMD ["npm", "run", "coolify:start"]
 
 # Healthcheck
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3001/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -fsS http://localhost:3001/api/ping || exit 1
 
 # Metadata
 LABEL maintainer="Café Colombia App"

@@ -4,20 +4,33 @@ const dotenv = require('dotenv');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const path = require('path');
+const fs = require('fs');
 
-// Cargar variables de entorno
-dotenv.config({ path: path.join(__dirname, '.env') });
+// Cargar variables de entorno (solo desde archivo en desarrollo)
+try {
+  const isProduction = (process.env.NODE_ENV || 'development') === 'production';
+  if (!isProduction) {
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+      dotenv.config({ path: envPath });
+    } else {
+      dotenv.config();
+    }
+  }
+} catch (e) {
+  console.warn('dotenv load skipped:', e?.message);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Configuración de la base de datos
+// Configuración de la base de datos (acepta ambas familias DB_* y MYSQL_*)
 const dbConfig = {
-  host: process.env.DB_HOST || 'srv1196.hstgr.io',
-  port: parseInt(process.env.DB_PORT || '3306'),
-  user: process.env.DB_USER || 'u689528678_SSALAZARCA',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'u689528678_CAFECOLOMBIA',
+  host: process.env.DB_HOST || process.env.MYSQL_HOST || 'srv1196.hstgr.io',
+  port: parseInt(process.env.DB_PORT || process.env.MYSQL_PORT || '3306'),
+  user: process.env.DB_USER || process.env.MYSQL_USER || 'u689528678_SSALAZARCA',
+  password: process.env.DB_PASSWORD || process.env.MYSQL_PASSWORD || '',
+  database: process.env.DB_NAME || process.env.MYSQL_DATABASE || 'u689528678_CAFECOLOMBIA',
   charset: 'utf8mb4',
   timezone: '+00:00',
   ssl: {
