@@ -31,9 +31,9 @@ interface RefreshTokenResponse {
 // CONFIGURACIÓN
 // =====================================================
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://api.cafecolombiaapp.com' 
-  : 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.DEV
+  ? (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api')
+  : (import.meta.env.VITE_API_URL || 'https://api.cafecolombiaapp.com');
 
 const DEFAULT_TIMEOUT = 30000; // 30 segundos
 
@@ -96,7 +96,7 @@ class TokenManager {
       throw new Error('No refresh token available');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/auth/admin/refresh`, {
+    const response = await fetch(`${API_BASE_URL}/auth/admin/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

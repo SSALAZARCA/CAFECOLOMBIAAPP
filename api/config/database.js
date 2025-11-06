@@ -15,9 +15,9 @@ const dbConfig = {
   reconnect: true,
   connectionLimit: 10,
   queueLimit: 0,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: process.env.DB_SSL === 'true' ? {
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false'
+  } : undefined
 };
 
 // Pool de conexiones

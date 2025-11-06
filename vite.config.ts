@@ -29,11 +29,14 @@ export default defineConfig(({ command, mode }) => {
     }), 
     tsconfigPaths(),
     VitePWA({
+      // Evitar inyección automática del script de registro, usamos registro manual en App.tsx
+      injectRegister: false,
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json,txt,woff2}'],
-        maximumFileSizeToCacheInBytes: 5000000,
+        // Aumentar límite para precache (8 MiB)
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\./,
@@ -133,9 +136,11 @@ export default defineConfig(({ command, mode }) => {
     include: ['react', 'react-dom', 'react-router-dom']
   },
   server: {
+    port: 5178,
+    strictPort: true,
     proxy: {
       '/api': {
-        target: env.VITE_API_URL || 'http://localhost:3001',
+        target: env.VITE_API_URL || 'http://localhost:3002',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {

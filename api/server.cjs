@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const path = require('path');
 
 // Cargar variables de entorno
@@ -27,7 +28,13 @@ const dbConfig = {
 
 // Configuración de CORS
 const corsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'],
+  origin: [
+    'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:5177', 'http://localhost:5178',
+    'http://localhost:4173', 'http://localhost:4174', 'http://localhost:4175', 'http://localhost:4176', 'http://localhost:4177', 'http://localhost:5178',
+    'https://31.97.128.11',
+    'https://cafecolombia.app', 'https://www.cafecolombia.app',
+    'https://cafecolombia.site', 'https://www.cafecolombia.site'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -131,8 +138,13 @@ app.post('/api/auth/login', async (req, res) => {
 
       if (adminUsers.length > 0) {
         const user = adminUsers[0];
-        // Para admin, verificar credenciales hardcodeadas por ahora
-        if (email === 'admin@cafecolombia.com' && password === 'admin123') {
+        const isValid = user.password_hash ? await bcrypt.compare(password, user.password_hash) : false;
+        if (isValid) {
+          const token = jwt.sign(
+            { sub: user.id, email: user.email, role: user.is_super_admin ? 'super_admin' : 'admin' },
+            process.env.JWT_SECRET || 'change_me',
+            { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+          );
           await connection.end();
           return res.json({
             message: 'Login exitoso',
@@ -140,10 +152,10 @@ app.post('/api/auth/login', async (req, res) => {
               id: user.id,
               email: user.email,
               name: user.name,
-              role: 'admin',
+              role: user.is_super_admin ? 'super_admin' : 'admin',
               is_super_admin: user.is_super_admin
             },
-            token: 'admin-token-' + Date.now()
+            token
           });
         }
       }
@@ -156,8 +168,13 @@ app.post('/api/auth/login', async (req, res) => {
 
       if (coffeeGrowers.length > 0) {
         const grower = coffeeGrowers[0];
-        // Para caficultores registrados, verificar password simple por ahora
-        if (password === 'password123' && grower.password_hash === 'simple_hash_password123') {
+        const isValid = grower.password_hash ? await bcrypt.compare(password, grower.password_hash) : false;
+        if (isValid) {
+          const token = jwt.sign(
+            { sub: grower.id, email: grower.email, role: 'coffee_grower', farmId: grower.farm_id },
+            process.env.JWT_SECRET || 'change_me',
+            { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+          );
           await connection.end();
           return res.json({
             message: 'Login exitoso',
@@ -169,7 +186,7 @@ app.post('/api/auth/login', async (req, res) => {
               farmId: grower.farm_id,
               farmName: grower.farm_name
             },
-            token: 'grower-token-' + grower.email
+            token
           });
         }
       }
@@ -215,8 +232,13 @@ app.post('/api/auth/admin/login', async (req, res) => {
 
       if (adminUsers.length > 0) {
         const user = adminUsers[0];
-        // Para admin, verificar credenciales hardcodeadas por ahora
-        if (email === 'admin@cafecolombiaapp.com' && password === 'admin123') {
+        const isValid = user.password_hash ? await bcrypt.compare(password, user.password_hash) : false;
+        if (isValid) {
+          const token = jwt.sign(
+            { sub: user.id, email: user.email, role: user.is_super_admin ? 'super_admin' : 'admin' },
+            process.env.JWT_SECRET || 'change_me',
+            { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+          );
           await connection.end();
           return res.json({
             message: 'Login exitoso',
@@ -226,7 +248,7 @@ app.post('/api/auth/admin/login', async (req, res) => {
               name: user.name,
               role: user.is_super_admin ? 'super_admin' : 'admin'
             },
-            token: 'admin-token-' + Date.now()
+            token
           });
         }
       }
@@ -388,8 +410,32 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// Ruta para obtener información del usuario
-app.get('/api/admin/me', (req, res) => {
+// JWT auth middleware for admin routes
+function authenticateJWT(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token de acceso requerido' });
+  }
+  const token = authHeader.slice(7);
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET || 'change_me');
+    req.user = payload;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Token inválido o expirado' });
+  }
+}
+
+function requireAdmin(req, res, next) {
+  const role = req.user?.role;
+  if (role !== 'admin' && role !== 'super_admin') {
+    return res.status(403).json({ error: 'Permisos insuficientes' });
+  }
+  next();
+}
+
+// Ruta para obtener información del usuario (ADMIN)
+app.get('/api/admin/me', authenticateJWT, requireAdmin, (req, res) => {
   // Simulación de usuario autenticado
   res.json({
     id: 'admin-001',
@@ -400,8 +446,8 @@ app.get('/api/admin/me', (req, res) => {
   });
 });
 
-// Ruta para obtener estadísticas del dashboard
-app.get('/api/admin/dashboard/stats', async (req, res) => {
+// Ruta para obtener estadísticas del dashboard (ADMIN)
+app.get('/api/admin/dashboard/stats', authenticateJWT, requireAdmin, async (req, res) => {
   try {
     // Datos de ejemplo para evitar límites de conexión de BD
     res.json({
@@ -419,12 +465,10 @@ app.get('/api/admin/dashboard/stats', async (req, res) => {
   }
 });
 
-// Ruta para obtener datos de gráficos del dashboard
-app.get('/admin/dashboard/charts', async (req, res) => {
+// Ruta para obtener datos de gráficos del dashboard (ADMIN)
+app.get('/api/admin/dashboard/charts', authenticateJWT, requireAdmin, async (req, res) => {
   try {
     const period = req.query.period || '30d';
-    
-    // Datos de ejemplo para gráficos (sin conexión a BD para evitar límites)
     const chartData = {
       userGrowth: [
         { date: '2024-10-01', users: 10 },
@@ -443,9 +487,7 @@ app.get('/admin/dashboard/charts', async (req, res) => {
       period: period,
       lastUpdate: new Date().toISOString()
     };
-    
     res.json(chartData);
-
   } catch (error) {
     console.error('Error obteniendo datos de gráficos:', error);
     res.status(500).json({

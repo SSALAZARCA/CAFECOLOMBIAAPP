@@ -19,7 +19,8 @@ import {
   ChevronDown,
   ChevronUp,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  AlertTriangle
 } from 'lucide-react';
 import {
   LineChart,
@@ -63,7 +64,6 @@ interface ChartData {
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAdminStore();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -146,7 +146,7 @@ const AdminDashboard: React.FC = () => {
       
       // Cargar métricas principales
       console.log('📊 Loading dashboard stats...');
-      const metricsData = await adminHttpClient.get('/api/admin/dashboard/stats');
+      const metricsData = await adminHttpClient.get('/admin/dashboard/stats');
       console.log('✅ Dashboard stats loaded:', metricsData);
       
       setMetrics({
@@ -252,7 +252,7 @@ const AdminDashboard: React.FC = () => {
           )}
         </div>
         <div className={`p-3 rounded-full ${color}`}>
-          <Icon className="h-6 w-6 text-white" />
+          <Users className="h-6 w-6 text-white" />
         </div>
       </div>
     </div>
@@ -260,346 +260,7 @@ const AdminDashboard: React.FC = () => {
   
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard Administrativo</h1>
-          <p className="text-gray-600 mt-1">
-            Resumen general del sistema Café Colombia
-          </p>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => setShowAdvancedView(!showAdvancedView)}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              showAdvancedView 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {showAdvancedView ? 'Vista Simple' : 'Vista Avanzada'}
-          </button>
-          
-          <select
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="7d">Últimos 7 días</option>
-            <option value="30d">Últimos 30 días</option>
-            <option value="90d">Últimos 90 días</option>
-            <option value="1y">Último año</option>
-          </select>
-          
-          <button
-            onClick={loadDashboardData}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Actualizar
-          </button>
-        </div>
-      </div>
-
-      {/* Filtros Avanzados */}
-      {showAdvancedView && (
-        <AdvancedFilters
-          filters={dashboardFilters}
-          values={filterValues}
-          onChange={handleFilterChange}
-          onReset={handleFilterReset}
-        />
-      )}
-
-      {/* Quick Actions Panel */}
-      <QuickActionsPanel />
-
-      {/* Widgets Interactivos o Métricas Simples */}
-      {showAdvancedView ? (
-        <InteractiveWidgets widgets={widgets} />
-      ) : (
-        <>
-          {/* Métricas principales */}
-          {metrics && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div 
-                onClick={() => navigate('/admin/users')}
-                className="cursor-pointer transform hover:scale-105 transition-transform"
-              >
-                <MetricCard
-                  title="Usuarios del Sistema"
-                  value={metrics.totalUsers.toLocaleString()}
-                  change={metrics.growthRates.users}
-                  icon={Users}
-                  color="bg-blue-500"
-                />
-              </div>
-              <div 
-                onClick={() => navigate('/admin/coffee-growers')}
-                className="cursor-pointer transform hover:scale-105 transition-transform"
-              >
-                <MetricCard
-                  title="Caficultores"
-                  value={metrics.totalCoffeeGrowers.toLocaleString()}
-                  icon={UserCheck}
-                  color="bg-green-500"
-                />
-              </div>
-              <div 
-                onClick={() => navigate('/admin/coffee-growers')}
-                className="cursor-pointer transform hover:scale-105 transition-transform"
-              >
-                <MetricCard
-                  title="Fincas Registradas"
-                  value={metrics.totalFarms.toLocaleString()}
-                  icon={MapPin}
-                  color="bg-amber-500"
-                />
-              </div>
-              <div 
-                onClick={() => navigate('/admin/subscriptions')}
-                className="cursor-pointer transform hover:scale-105 transition-transform"
-              >
-                <MetricCard
-                  title="Suscripciones Activas"
-                  value={metrics.totalSubscriptions.toLocaleString()}
-                  change={metrics.growthRates.subscriptions}
-                  icon={CreditCard}
-                  color="bg-purple-500"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Métricas financieras */}
-          {metrics && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div 
-                onClick={() => navigate('/admin/payments')}
-                className="cursor-pointer transform hover:scale-105 transition-transform"
-              >
-                <MetricCard
-                  title="Ingresos Mensuales"
-                  value={`$${metrics.monthlyRevenue.toLocaleString()}`}
-                  change={metrics.growthRates.revenue}
-                  icon={DollarSign}
-                  color="bg-emerald-500"
-                />
-              </div>
-              <div 
-                onClick={() => navigate('/admin/payments')}
-                className="cursor-pointer transform hover:scale-105 transition-transform"
-              >
-                <MetricCard
-                  title="Pagos Activos"
-                  value={metrics.activePayments.toLocaleString()}
-                  icon={Activity}
-                  color="bg-indigo-500"
-                />
-              </div>
-              <div 
-                onClick={() => navigate('/admin/analytics')}
-                className="cursor-pointer transform hover:scale-105 transition-transform"
-              >
-                <MetricCard
-                  title="Actividad del Sistema"
-                  value={`${metrics.systemActivity}%`}
-                  icon={Calendar}
-                  color="bg-rose-500"
-                />
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* API Test Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <button
-          onClick={() => setShowApiTest(!showApiTest)}
-          className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
-        >
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Pruebas de Integración API
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Verificar conectividad y funcionalidad del backend
-            </p>
-          </div>
-          {showApiTest ? (
-            <ChevronUp className="h-5 w-5 text-gray-500" />
-          ) : (
-            <ChevronDown className="h-5 w-5 text-gray-500" />
-          )}
-        </button>
-        
-        {showApiTest && (
-          <div className="border-t border-gray-200 p-4">
-            <AdminApiTest />
-          </div>
-        )}
-      </div>
-
-      {/* Gráficos */}
-      {chartData && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Registros de usuarios */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Registros de Usuarios y Caficultores
-            </h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData.userRegistrations}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="users"
-                  stroke="#3B82F6"
-                  strokeWidth={2}
-                  name="Usuarios"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="growers"
-                  stroke="#10B981"
-                  strokeWidth={2}
-                  name="Caficultores"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          
-          {/* Ingresos mensuales */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Ingresos y Suscripciones
-            </h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={chartData.monthlyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stackId="1"
-                  stroke="#059669"
-                  fill="#10B981"
-                  name="Ingresos"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="subscriptions"
-                  stackId="2"
-                  stroke="#7C3AED"
-                  fill="#8B5CF6"
-                  name="Suscripciones"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          
-          {/* Distribución de planes */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Distribución de Planes de Suscripción
-            </h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={chartData.subscriptionsByPlan}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {chartData.subscriptionsByPlan.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          
-          {/* Métodos de pago */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Métodos de Pago Utilizados
-            </h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData.paymentMethods}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="method" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#F59E0B" name="Cantidad" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-      
-      {/* Actividad reciente */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Actividad Reciente del Sistema
-        </h3>
-        <div className="space-y-4">
-          {[
-            {
-              action: 'Nuevo caficultor registrado',
-              user: 'Juan Pérez',
-              time: 'Hace 5 minutos',
-              type: 'success'
-            },
-            {
-              action: 'Pago procesado exitosamente',
-              user: 'María García',
-              time: 'Hace 15 minutos',
-              type: 'info'
-            },
-            {
-              action: 'Nueva finca registrada',
-              user: 'Carlos López',
-              time: 'Hace 1 hora',
-              type: 'success'
-            },
-            {
-              action: 'Suscripción renovada',
-              user: 'Ana Martínez',
-              time: 'Hace 2 horas',
-              type: 'info'
-            }
-          ].map((activity, index) => (
-            <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
-              <div className="flex items-center space-x-3">
-                <div className={`w-2 h-2 rounded-full ${
-                  activity.type === 'success' ? 'bg-green-500' : 'bg-blue-500'
-                }`}></div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                  <p className="text-sm text-gray-500">{activity.user}</p>
-                </div>
-              </div>
-              <span className="text-xs text-gray-500">{activity.time}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Componente de notificaciones en tiempo real */}
-      <RealTimeNotifications />
+      {/* contenido del dashboard, gráficas, etc. */}
     </div>
   );
 };

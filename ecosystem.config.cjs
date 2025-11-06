@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'cafe-colombia-api',
-      script: './api/dist/server.js',
+      script: './api/server.cjs',
       instances: 'max', // Usar todos los cores disponibles
       exec_mode: 'cluster',
       env: {
@@ -30,7 +30,7 @@ module.exports = {
       ignore_watch: ['node_modules', 'logs', 'uploads', 'backups'],
       
       // Variables de entorno específicas
-      env_file: '.env',
+      env_file: 'api/.env',
       
       // Configuración de cluster
       kill_timeout: 5000,
@@ -63,7 +63,7 @@ module.exports = {
       repo: 'git@github.com:SSALAZARCA/CAFECOLOMBIAAPP.git',
       path: '/var/www/cafecolombiaapp',
       'pre-deploy-local': '',
-      'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env production',
+      'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.cjs --env production',
       'pre-setup': ''
     }
   }

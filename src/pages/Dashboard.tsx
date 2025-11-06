@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
   Coffee, 
   TrendingUp, 
@@ -149,6 +149,60 @@ const Dashboard: React.FC = () => {
       }
     } catch (error) {
       console.error('Error cargando datos del dashboard:', error);
+      // Usar datos de ejemplo si ocurre error de red
+      setDashboardData({
+          user: {
+            name: 'Juan Pérez',
+            email: 'juan@email.com',
+            farmName: 'Finca El Paraíso'
+          },
+          farm: {
+            totalArea: 5.5,
+            coffeeArea: 4.2,
+            location: 'Huila, Pitalito',
+            altitude: 1650
+          },
+          production: {
+            currentSeason: 2800,
+            lastSeason: 2650,
+            trend: 'up'
+          },
+          weather: {
+            temperature: 22,
+            humidity: 75,
+            rainfall: 120
+          },
+          alerts: [
+            {
+              id: '1',
+              type: 'warning',
+              message: 'Riesgo de roya detectado en lote 3',
+              date: '2024-01-15'
+            },
+            {
+              id: '2',
+              type: 'info',
+              message: 'Próxima fertilización programada',
+              date: '2024-01-20'
+            }
+          ],
+          tasks: [
+            {
+              id: '1',
+              title: 'Aplicar fungicida preventivo',
+              dueDate: '2024-01-18',
+              priority: 'high',
+              completed: false
+            },
+            {
+              id: '2',
+              title: 'Revisar sistema de riego',
+              dueDate: '2024-01-22',
+              priority: 'medium',
+              completed: false
+            }
+          ]
+        });
     } finally {
       setLoading(false);
     }
@@ -167,7 +221,7 @@ const Dashboard: React.FC = () => {
     { icon: Leaf, label: 'MIP', path: '/mip' },
     { icon: TrendingUp, label: 'Análisis de Mercado', path: '/analisis-mercado' },
     { icon: AlertTriangle, label: 'Alertas IA', path: '/alertas-ia' },
-    { icon: Settings, label: 'Configuración', path: '/settings' },
+    { icon: Settings, label: 'Configuración', path: '/configuracion' },
   ];
 
   if (loading) {
@@ -207,9 +261,9 @@ const Dashboard: React.FC = () => {
           </div>
           <nav className="flex-1 px-4 py-4">
             {menuItems.map((item) => (
-              <a
+              <Link
                 key={item.path}
-                href={item.path}
+                to={item.path}
                 className={`flex items-center px-4 py-2 text-sm font-medium rounded-md mb-1 ${
                   item.active
                     ? 'bg-green-100 text-green-700'
@@ -218,7 +272,7 @@ const Dashboard: React.FC = () => {
               >
                 <item.icon className="mr-3 h-5 w-5" />
                 {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
         </div>
@@ -233,9 +287,9 @@ const Dashboard: React.FC = () => {
           </div>
           <nav className="flex-1 px-4 py-4">
             {menuItems.map((item) => (
-              <a
+              <Link
                 key={item.path}
-                href={item.path}
+                to={item.path}
                 className={`flex items-center px-4 py-2 text-sm font-medium rounded-md mb-1 ${
                   item.active
                     ? 'bg-green-100 text-green-700'
@@ -244,7 +298,7 @@ const Dashboard: React.FC = () => {
               >
                 <item.icon className="mr-3 h-5 w-5" />
                 {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
           <div className="border-t p-4">

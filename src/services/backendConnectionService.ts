@@ -30,8 +30,16 @@ class BackendConnectionService {
   private healthCheckInterval_ms = 30000; // 30 segundos
   private isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
 
-  private baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-  private healthEndpoint = '/api/health';
+  private baseUrl = (() => {
+    const raw = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
+    const normalized = String(raw).replace(/\/$/, '');
+    // Si es URL completa y no termina con /api, anexar /api
+    if (/^https?:\/\//.test(normalized) && !/\/api$/.test(normalized)) {
+      return `${normalized}/api`;
+    }
+    return normalized;
+  })();
+  private healthEndpoint = '/health';
 
   constructor() {
     // En modo desarrollo, reducir la frecuencia de health checks
@@ -150,7 +158,7 @@ class BackendConnectionService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos
 
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const response = await fetch(`${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`, {
         ...options,
         signal: controller.signal,
         headers: {

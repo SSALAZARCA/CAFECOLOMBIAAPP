@@ -205,7 +205,8 @@ export const useAdminStore = create<AdminStore>()(
         try {
           console.log('🔐 DEBUG AdminStore - Iniciando login con:', { email, password: '***' });
           
-          const data = await adminHttpClient.post('/api/admin/auth/login', {
+          // Ajustar endpoints para evitar doble "/api"
+          const data = await adminHttpClient.post('/auth/admin/login', {
             username: email, // El servidor espera 'username' pero acepta email
             password,
             two_factor_code: twoFactorCode
@@ -218,7 +219,7 @@ export const useAdminStore = create<AdminStore>()(
           console.log('🔑 DEBUG AdminStore - JWT payload:', jwtPayload);
           
           // Obtener información del admin autenticado
-          const adminInfo = await adminHttpClient.get('/api/admin/auth/me', {
+          const adminInfo = await adminHttpClient.get('/admin/me', {
             headers: {
               'Authorization': `Bearer ${data.token}`
             }
@@ -276,7 +277,8 @@ export const useAdminStore = create<AdminStore>()(
         
         if (session) {
           try {
-            await adminHttpClient.post('/api/auth/admin/logout');
+            // Endpoint correcto de logout
+            await adminHttpClient.post('/admin/auth/logout');
           } catch (error) {
             console.error('Error al cerrar sesión:', error);
           }
@@ -301,18 +303,19 @@ export const useAdminStore = create<AdminStore>()(
         if (!session) return false;
         
         try {
-          const response = await fetch('/api/auth/admin/refresh', {
-            method: 'POST',
+          const data = await adminHttpClient.post('/admin/auth/refresh', {}, {
             headers: { 'Authorization': `Bearer ${session.token}` }
           });
           
-          if (!response.ok) {
-            get().logout();
-            return false;
-          }
+          set({ session: data.session || {
+            token: data.token,
+            refresh_token: data.refresh_token || data.token,
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+          }});
           
-          const data = await response.json();
-          set({ session: data.session });
+          if (data.token) {
+            adminHttpClient.setAuthToken(data.token, data.refresh_token || data.token);
+          }
           return true;
         } catch (error) {
           get().logout();
@@ -324,32 +327,23 @@ export const useAdminStore = create<AdminStore>()(
         const { session } = get();
         if (!session) throw new Error('No hay sesión activa');
         
-        const response = await fetch('/api/auth/admin/2fa/enable', {
-          method: 'POST',
+        const data = await adminHttpClient.post('/admin/auth/2fa/enable', {} ,{
           headers: { 'Authorization': `Bearer ${session.token}` }
         });
         
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message);
-        
-        return data.qr_code;
+        return data.qr_code || data.qrCode;
       },
       
       verify2FA: async (code: string) => {
         const { session } = get();
         if (!session) throw new Error('No hay sesión activa');
         
-        const response = await fetch('/api/auth/admin/2fa/verify', {
-          method: 'POST',
+        const data = await adminHttpClient.post('/admin/auth/2fa/verify', { code }, {
           headers: { 
             'Authorization': `Bearer ${session.token}`,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ code })
+          }
         });
-        
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message);
         
         // Actualizar el usuario actual
         set(state => ({
@@ -366,17 +360,12 @@ export const useAdminStore = create<AdminStore>()(
         const { session } = get();
         if (!session) throw new Error('No hay sesión activa');
         
-        const response = await fetch('/api/auth/admin/2fa/disable', {
-          method: 'POST',
+        await adminHttpClient.post('/admin/auth/2fa/disable', { code }, {
           headers: { 
             'Authorization': `Bearer ${session.token}`,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ code })
+          }
         });
-        
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message);
         
         // Actualizar el usuario actual
         set(state => ({
@@ -537,7 +526,7 @@ export const useAdminStore = create<AdminStore>()(
           const params = dateRange ? 
             `?from=${dateRange.from}&to=${dateRange.to}` : '';
           
-          const data = await adminHttpClient.get(`/api/admin/dashboard/stats${params}`);
+          const data = await adminHttpClient.get(`/admin/dashboard/stats${params}`);
           
           set({ 
             dashboardMetrics: data,
@@ -958,7 +947,7 @@ export const useAdminStore = create<AdminStore>()(
       generateReport: async () => { throw new Error('No implementado'); },
       exportReport: async () => { throw new Error('No implementado'); },
       
-      // =====================================================
+
       // UTILIDADES
       // =====================================================
       

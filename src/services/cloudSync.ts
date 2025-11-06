@@ -153,16 +153,14 @@ export class CloudSyncService {
   // Verificar disponibilidad del backend
   private async checkBackendAvailability(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.config.apiBaseUrl}/api/health`, {
+      const response = await fetch(`${this.config.apiBaseUrl}/health`, {
         method: 'GET',
-        signal: AbortSignal.timeout(2000) // 2 segundos timeout
+        signal: AbortSignal.timeout(2000)
       });
       return response.ok;
     } catch (error) {
-      // Silenciar errores en modo desarrollo
       const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
       if (isDevelopment) {
-        // No logear errores de conexión en desarrollo
         return false;
       }
       console.warn('[CloudSync] Backend availability check failed:', error);
@@ -495,7 +493,7 @@ export class CloudSyncService {
 
 // Configuración por defecto
 export const defaultCloudSyncConfig: CloudSyncConfig = {
-  apiBaseUrl: appConfig.api.baseUrl,
+  apiBaseUrl: '/api',
   apiKey: import.meta.env.VITE_API_KEY || '',
   enableAutoSync: appConfig.sync.enableAutoSync,
   syncInterval: appConfig.sync.interval,
