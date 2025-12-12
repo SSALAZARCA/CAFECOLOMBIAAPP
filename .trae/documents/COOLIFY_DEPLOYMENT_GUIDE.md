@@ -3,6 +3,7 @@
 ## 1. Preparación del Repositorio
 
 ### 1.1 Archivos Necesarios
+
 Asegúrate de que tu repositorio contenga estos archivos esenciales:
 
 ```
@@ -21,6 +22,7 @@ Asegúrate de que tu repositorio contenga estos archivos esenciales:
 ```
 
 ### 1.2 .gitignore Actualizado
+
 ```gitignore
 # Dependencies
 node_modules/
@@ -115,6 +117,7 @@ backups/
 ### 1.3 Archivos de Configuración Coolify
 
 **coolify.json:**
+
 ```json
 {
   "name": "cafe-colombia-fullstack",
@@ -154,6 +157,7 @@ backups/
 ```
 
 **coolify-build.json:**
+
 ```json
 {
   "name": "cafe-colombia-build",
@@ -176,6 +180,7 @@ backups/
 ```
 
 ### 1.4 Scripts en package.json
+
 ```json
 {
   "scripts": {
@@ -192,6 +197,7 @@ backups/
 ### 2.1 Configuración de Base de Datos
 
 **Opción A: Base de datos externa (recomendado)**
+
 ```bash
 # MySQL Externo
 MYSQL_HOST=tu-servidor-mysql.com
@@ -210,6 +216,7 @@ DB_NAME=u689528678_cafecolombia
 ```
 
 **Opción B: Base de datos interna (Docker Compose)**
+
 ```bash
 # Usar servicio MySQL interno
 MYSQL_HOST=mysql
@@ -225,6 +232,7 @@ DB_NAME=cafecolombia
 ```
 
 ### 2.2 Variables de Aplicación
+
 ```bash
 # Entorno
 NODE_ENV=production
@@ -272,6 +280,7 @@ LOG_FILE=./logs/app.log
 ```
 
 ### 2.3 Plantilla de Variables (.env.coolify)
+
 ```bash
 # === CONFIGURACIÓN DE BASE DE DATOS ===
 # IMPORTANTE: Configura tanto MYSQL_* como DB_* con los mismos valores
@@ -320,14 +329,17 @@ WOMPI_PRIVATE_KEY=tu-private-key
 ## 3. Pasos de Despliegue en Coolify
 
 ### 3.1 Preparación Inicial
+
 1. **Accede a tu instancia de Coolify**
 2. **Crea un nuevo proyecto** o selecciona uno existente
 3. **Configura el proveedor de Git** (GitHub, GitLab, etc.)
 
 ### 3.2 Crear Recurso de Aplicación
+
 1. Click en **"New Resource"**
 2. Selecciona **"Docker Compose"** o **"Dockerfile"**
 3. **Docker Compose (Recomendado)**:
+
    ```yaml
    version: '3.8'
    services:
@@ -354,6 +366,7 @@ WOMPI_PRIVATE_KEY=tu-private-key
    ```
 
 ### 3.3 Configuración del Recurso
+
 1. **Nombre del recurso**: `cafe-colombia-prod`
 2. **Repositorio**: Selecciona tu repositorio de Git
 3. **Rama**: `main` o `master`
@@ -361,18 +374,21 @@ WOMPI_PRIVATE_KEY=tu-private-key
 5. **Puerto**: `3001`
 
 ### 3.4 Configurar Variables de Entorno
+
 1. Ve a la pestaña **"Environment Variables"**
 2. **Copia todas las variables** de la sección 2.2
 3. **Asegúrate de cambiar los valores** marcados como `CAMBIAR_A...`
-4. **Verifica que tanto MYSQL_* como DB_* tengan los mismos valores**
+4. *Verifica que tanto MYSQL\_* como DB\_ tengan los mismos valores\*\*
 
 ### 3.5 Configuración de Dominio
+
 1. Ve a **"Domains"**
 2. **Agrega tu dominio** (ejemplo: `cafe-colombia.com`)
 3. **Activa SSL** con Let's Encrypt
 4. **Configura el proxy inverso** si es necesario
 
 ### 3.6 Iniciar Despliegue
+
 1. Click en **"Deploy"**
 2. **Monitorea los logs** del despliegue
 3. **Verifica que no haya errores**
@@ -380,6 +396,7 @@ WOMPI_PRIVATE_KEY=tu-private-key
 ## 4. Verificación Post-Despliegue
 
 ### 4.1 Verificar Health Check
+
 ```bash
 # Desde tu terminal local
 curl -f https://tu-dominio.com/api/health
@@ -387,6 +404,7 @@ curl -f https://tu-dominio.com/api/health
 ```
 
 ### 4.2 Verificar Base de Datos
+
 ```bash
 # Conectarse a MySQL
 mysql -h tu-servidor -u u689528678_CAFECOLOMBIA -p
@@ -400,13 +418,17 @@ SELECT * FROM roles;
 ```
 
 ### 4.3 Verificar Login
+
 1. **Accede a**: `https://tu-dominio.com/login`
 2. **Prueba login con**:
-   - Email: `admin@cafecolombia.com`
-   - Password: `admin123`
+
+   * Email: `admin@cafecolombia.com`
+
+   * Password: `admin123`
 3. **Verifica acceso al panel de administración**
 
 ### 4.4 Verificar Subida de Archivos
+
 1. **Prueba subir una imagen** desde el panel admin
 2. **Verifica que se guarde** en `/uploads`
 3. **Confirma que la imagen sea accesible** públicamente
@@ -414,6 +436,7 @@ SELECT * FROM roles;
 ## 5. Solución de Problemas Comunes
 
 ### 5.1 Error de Conexión a Base de Datos
+
 ```bash
 # Error típico: Access denied for user
 # Solución: Verificar credenciales
@@ -423,6 +446,7 @@ DB_USER=u689528678_CAFECOLOMBIA
 ```
 
 ### 5.2 Error de Puerto 3001 Ocupado
+
 ```bash
 # Verificar qué proceso usa el puerto
 sudo lsof -i :3001
@@ -431,12 +455,14 @@ sudo kill -9 [PID]
 ```
 
 ### 5.3 Error de CORS
+
 ```bash
 # Verificar variable CORS_ORIGIN
 CORS_ORIGIN=https://tu-dominio.com,https://www.tu-dominio.com
 ```
 
 ### 5.4 Error de Permisos de Archivos
+
 ```bash
 # Asegurar permisos correctos
 sudo chown -R www-data:www-data uploads/
@@ -444,6 +470,7 @@ sudo chmod -R 755 uploads/
 ```
 
 ### 5.5 Error de Health Check
+
 ```bash
 # Verificar que el endpoint responda
 curl -v http://localhost:3001/api/health
@@ -454,6 +481,7 @@ docker logs cafe-colombia-prod-app-1
 ## 6. Configuración de Base de Datos
 
 ### 6.1 Base de Datos Externa (Recomendado)
+
 ```bash
 # Crear base de datos
 CREATE DATABASE u689528678_cafecolombia CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -465,6 +493,7 @@ FLUSH PRIVILEGES;
 ```
 
 ### 6.2 Ejecutar Migraciones
+
 ```bash
 # Después del despliegue, ejecutar:
 npm run migrate:prod
@@ -473,6 +502,7 @@ node api/runMigrations.cjs
 ```
 
 ### 6.3 Crear Usuario Admin
+
 ```bash
 # Si necesitas crear admin manualmente
 node api/create_test_admin.cjs
@@ -481,6 +511,7 @@ node api/create_test_admin.cjs
 ## 7. Configuración de Dominio y SSL
 
 ### 7.1 Configuración DNS
+
 ```
 A     @     tu-ip-coolify
 A     www   tu-ip-coolify
@@ -488,11 +519,13 @@ CNAME api   tu-ip-coolify
 ```
 
 ### 7.2 Configuración SSL
+
 1. **Coolify genera automáticamente** certificados Let's Encrypt
 2. **Verifica la renovación automática**
 3. **Configura redirect HTTP → HTTPS**
 
 ### 7.3 Configuración de Proxy Inverso
+
 ```nginx
 server {
     listen 80;
@@ -526,6 +559,7 @@ server {
 ## 8. Mantenimiento y Monitoreo
 
 ### 8.1 Scripts de Mantenimiento
+
 ```bash
 # Backup de base de datos
 npm run backup
@@ -538,12 +572,17 @@ npm run health:check
 ```
 
 ### 8.2 Monitoreo
-- **Configura alertas** en Coolify
-- **Monitorea logs** de errores
-- **Verifica uso de recursos** (CPU, memoria, disco)
-- **Revisa logs de acceso** regularmente
+
+* **Configura alertas** en Coolify
+
+* **Monitorea logs** de errores
+
+* **Verifica uso de recursos** (CPU, memoria, disco)
+
+* **Revisa logs de acceso** regularmente
 
 ### 8.3 Actualizaciones
+
 ```bash
 # Para actualizar la aplicación
 1. Actualiza código en Git
@@ -573,18 +612,29 @@ docker exec -it cafe-colombia-prod-app-1 bash
 
 ## 10. Checklist Final
 
-- [ ] Repositorio subido con todos los archivos necesarios
-- [ ] Variables de entorno configuradas en Coolify
-- [ ] Base de datos accesible y configurada
-- [ ] Dominio configurado y apuntando a Coolify
-- [ ] SSL activado y funcionando
-- [ ] Health check respondiendo correctamente
-- [ ] Login de admin funcionando
-- [ ] Subida de archivos funcionando
-- [ ] CORS configurado correctamente
-- [ ] Backups configurados
-- [ ] Monitoreo activado
-- [ ] Documentación actualizada
+* [ ] Repositorio subido con todos los archivos necesarios
+
+* [ ] Variables de entorno configuradas en Coolify
+
+* [ ] Base de datos accesible y configurada
+
+* [ ] Dominio configurado y apuntando a Coolify
+
+* [ ] SSL activado y funcionando
+
+* [ ] Health check respondiendo correctamente
+
+* [ ] Login de admin funcionando
+
+* [ ] Subida de archivos funcionando
+
+* [ ] CORS configurado correctamente
+
+* [ ] Backups configurados
+
+* [ ] Monitoreo activado
+
+* [ ] Documentación actualizada
 
 ## Soporte
 
@@ -592,9 +642,11 @@ Si encuentras problemas durante el despliegue:
 
 1. **Revisa los logs** de Coolify y Docker
 2. **Verifica las variables de entorno** (especialmente las de DB)
-3. **Asegúrate de que ambas familias MYSQL_* y DB_* estén configuradas**
+3. *Asegúrate de que ambas familias MYSQL\_* y DB\_ estén configuradas\*\*
 4. **Comprueba que el puerto 3001 esté disponible**
 5. **Verifica la conectividad a la base de datos**
 
 Para más ayuda, consulta:
-- [
+
+* \[
+

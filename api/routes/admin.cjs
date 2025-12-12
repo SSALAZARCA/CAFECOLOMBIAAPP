@@ -1,22 +1,8 @@
 const express = require('express');
-const mysql = require('mysql2/promise');
+const { pool } = require('../config/database.cjs');
 const bcrypt = require('bcryptjs');
 
 const router = express.Router();
-
-// Configuración de la base de datos (reutilizar del servidor principal)
-const dbConfig = {
-  host: process.env.DB_HOST || 'srv1196.hstgr.io',
-  port: parseInt(process.env.DB_PORT || '3306'),
-  user: process.env.DB_USER || 'u689528678_SSALAZARCA',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'u689528678_CAFECOLOMBIA',
-  charset: 'utf8mb4',
-  timezone: '+00:00',
-  ssl: {
-    rejectUnauthorized: false
-  }
-};
 
 // Middleware de autenticación para admin
 const authenticateAdmin = async (req, res, next) => {
@@ -30,7 +16,7 @@ const authenticateAdmin = async (req, res, next) => {
     }
 
     const token = authHeader.substring(7);
-    
+
     // Verificar token simple por ahora
     if (token.startsWith('admin-token-')) {
       req.admin = { id: 1, email: 'admin@cafecolombia.com', role: 'admin' };
@@ -53,10 +39,8 @@ const authenticateAdmin = async (req, res, next) => {
 // GET /admin/settings - Obtener todas las configuraciones
 router.get('/settings', authenticateAdmin, async (req, res) => {
   try {
-    const connection = await mysql.createConnection(dbConfig);
-    
     try {
-      const [settings] = await connection.execute(`
+      const [settings] = await pool.execute(`
         SELECT 
           id,
           category,
@@ -75,7 +59,7 @@ router.get('/settings', authenticateAdmin, async (req, res) => {
         if (!acc[setting.category]) {
           acc[setting.category] = {};
         }
-        
+
         // Parsear valor según el tipo de dato
         let parsedValue = setting.setting_value;
         try {
@@ -97,11 +81,9 @@ router.get('/settings', authenticateAdmin, async (req, res) => {
           is_public: setting.is_public,
           updated_at: setting.updated_at
         };
-        
+
         return acc;
       }, {});
-
-      await connection.end();
 
       res.json({
         success: true,
@@ -109,7 +91,6 @@ router.get('/settings', authenticateAdmin, async (req, res) => {
       });
 
     } catch (dbError) {
-      await connection.end();
       throw dbError;
     }
 
@@ -125,10 +106,8 @@ router.get('/settings', authenticateAdmin, async (req, res) => {
 // GET /admin/settings/payment - Obtener configuraciones de pago específicamente
 router.get('/settings/payment', authenticateAdmin, async (req, res) => {
   try {
-    const connection = await mysql.createConnection(dbConfig);
-    
     try {
-      const [settings] = await connection.execute(`
+      const [settings] = await pool.execute(`
         SELECT 
           setting_key,
           setting_value,
@@ -159,15 +138,12 @@ router.get('/settings/payment', authenticateAdmin, async (req, res) => {
         paymentSettings[setting.setting_key] = parsedValue;
       });
 
-      await connection.end();
-
       res.json({
         success: true,
         data: paymentSettings
       });
 
     } catch (dbError) {
-      await connection.end();
       throw dbError;
     }
 

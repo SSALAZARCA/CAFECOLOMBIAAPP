@@ -3,21 +3,19 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { 
-  User, 
-  Mail, 
-  Lock, 
-  Phone, 
-  MapPin, 
-  Home, 
-  Leaf, 
-  Award,
-  Eye,
-  EyeOff,
+import {
+  User,
+  Mail,
+  Lock,
+  Phone,
+  MapPin,
+  Home,
+  Leaf,
   CheckCircle,
-  AlertCircle,
   ArrowLeft
 } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import apiClient, { API_ENDPOINTS } from '../services/apiClient';
 
 // Esquema de validación
 const registerSchema = z.object({
@@ -86,7 +84,6 @@ const Register: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
-  const [selectedDepartment, setSelectedDepartment] = useState('');
 
   const {
     register,
@@ -108,43 +105,31 @@ const Register: React.FC = () => {
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
-    
+
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
-      const response = await fetch(`${apiUrl}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          phone: data.phone,
-          farmName: data.farmName,
-          farmLocation: {
-            department: data.department,
-            municipality: data.municipality,
-            address: data.address
-          },
-          farmSize: data.farmSize,
-          coffeeVarieties: data.coffeeVarieties,
-          certifications: data.certifications,
-          experience: data.experience
-        }),
+      // Uso de apiClient para asegurar la URL correcta (/api/auth/register)
+      const response = await apiClient.post(API_ENDPOINTS.auth.register, {
+        email: data.email,
+        password: data.password,
+        name: `${data.firstName} ${data.lastName}`, // Backend espera 'name'
+        farmName: data.farmName,
+        phone: data.phone,
+        location: `${data.department}, ${data.municipality}, ${data.address}`, // Ajuste para backend
+        farmSize: data.farmSize,
+        // Otros campos que tu backend podría necesitar mapear
+        coffeeVariety: data.coffeeVarieties.join(', '),
+        altitude: 1500, // Valor por defecto o agregar campo al form
       });
 
-      if (response.ok) {
-        navigate('/login', { 
-          state: { 
+      if (response.success || response.data) {
+        navigate('/login', {
+          state: {
             message: 'Registro exitoso. Revisa tu email para activar tu cuenta.',
             type: 'success'
           }
         });
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error en el registro');
+        throw new Error(response.message || response.error || 'Error en el registro');
       }
     } catch (error) {
       console.error('Error en registro:', error);
@@ -155,10 +140,10 @@ const Register: React.FC = () => {
   };
 
   const nextStep = async () => {
-    const fieldsToValidate = step === 1 
+    const fieldsToValidate = step === 1
       ? ['firstName', 'lastName', 'email', 'password', 'confirmPassword', 'phone']
       : ['farmName', 'department', 'municipality', 'address', 'farmSize', 'experience'];
-    
+
     const isValid = await trigger(fieldsToValidate as any);
     if (isValid) {
       setStep(step + 1);
@@ -205,27 +190,24 @@ const Register: React.FC = () => {
         <div className="mb-8">
           <div className="flex items-center justify-center space-x-4">
             <div className={`flex items-center ${step >= 1 ? 'text-green-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step >= 1 ? 'bg-green-600 text-white' : 'bg-gray-200'
-              }`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-green-600 text-white' : 'bg-gray-200'
+                }`}>
                 {step > 1 ? <CheckCircle className="w-5 h-5" /> : '1'}
               </div>
               <span className="ml-2 text-sm font-medium">Datos Personales</span>
             </div>
             <div className={`w-8 h-1 ${step >= 2 ? 'bg-green-600' : 'bg-gray-200'}`}></div>
             <div className={`flex items-center ${step >= 2 ? 'text-green-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step >= 2 ? 'bg-green-600 text-white' : 'bg-gray-200'
-              }`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-green-600 text-white' : 'bg-gray-200'
+                }`}>
                 {step > 2 ? <CheckCircle className="w-5 h-5" /> : '2'}
               </div>
               <span className="ml-2 text-sm font-medium">Información de Finca</span>
             </div>
             <div className={`w-8 h-1 ${step >= 3 ? 'bg-green-600' : 'bg-gray-200'}`}></div>
             <div className={`flex items-center ${step >= 3 ? 'text-green-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step >= 3 ? 'bg-green-600 text-white' : 'bg-gray-200'
-              }`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-green-600 text-white' : 'bg-gray-200'
+                }`}>
                 {step > 3 ? <CheckCircle className="w-5 h-5" /> : '3'}
               </div>
               <span className="ml-2 text-sm font-medium">Cultivo y Certificaciones</span>
@@ -238,7 +220,7 @@ const Register: React.FC = () => {
           {step === 1 && (
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Información Personal</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Nombre</label>
@@ -247,9 +229,8 @@ const Register: React.FC = () => {
                     <input
                       {...register('firstName')}
                       type="text"
-                      className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${
-                        errors.firstName ? 'border-red-300' : 'border-gray-300'
-                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                      className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${errors.firstName ? 'border-red-300' : 'border-gray-300'
+                        } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
                       placeholder="Tu nombre"
                     />
                   </div>
@@ -265,9 +246,8 @@ const Register: React.FC = () => {
                     <input
                       {...register('lastName')}
                       type="text"
-                      className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${
-                        errors.lastName ? 'border-red-300' : 'border-gray-300'
-                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                      className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${errors.lastName ? 'border-red-300' : 'border-gray-300'
+                        } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
                       placeholder="Tu apellido"
                     />
                   </div>
@@ -284,9 +264,8 @@ const Register: React.FC = () => {
                   <input
                     {...register('email')}
                     type="email"
-                    className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${
-                      errors.email ? 'border-red-300' : 'border-gray-300'
-                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                    className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${errors.email ? 'border-red-300' : 'border-gray-300'
+                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
                     placeholder="tu@email.com"
                   />
                 </div>
@@ -302,9 +281,8 @@ const Register: React.FC = () => {
                   <input
                     {...register('phone')}
                     type="tel"
-                    className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${
-                      errors.phone ? 'border-red-300' : 'border-gray-300'
-                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                    className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${errors.phone ? 'border-red-300' : 'border-gray-300'
+                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
                     placeholder="+57 300 123 4567"
                   />
                 </div>
@@ -321,9 +299,8 @@ const Register: React.FC = () => {
                     <input
                       {...register('password')}
                       type={showPassword ? 'text' : 'password'}
-                      className={`pl-10 pr-10 appearance-none relative block w-full px-3 py-2 border ${
-                        errors.password ? 'border-red-300' : 'border-gray-300'
-                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                      className={`pl-10 pr-10 appearance-none relative block w-full px-3 py-2 border ${errors.password ? 'border-red-300' : 'border-gray-300'
+                        } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
                       placeholder="Mínimo 8 caracteres"
                     />
                     <button
@@ -350,9 +327,8 @@ const Register: React.FC = () => {
                     <input
                       {...register('confirmPassword')}
                       type={showConfirmPassword ? 'text' : 'password'}
-                      className={`pl-10 pr-10 appearance-none relative block w-full px-3 py-2 border ${
-                        errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                      className={`pl-10 pr-10 appearance-none relative block w-full px-3 py-2 border ${errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                        } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
                       placeholder="Repite la contraseña"
                     />
                     <button
@@ -389,7 +365,7 @@ const Register: React.FC = () => {
           {step === 2 && (
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Información de la Finca</h3>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">Nombre de la Finca</label>
                 <div className="mt-1 relative">
@@ -397,9 +373,8 @@ const Register: React.FC = () => {
                   <input
                     {...register('farmName')}
                     type="text"
-                    className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${
-                      errors.farmName ? 'border-red-300' : 'border-gray-300'
-                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                    className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${errors.farmName ? 'border-red-300' : 'border-gray-300'
+                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
                     placeholder="Ej: Finca El Paraíso"
                   />
                 </div>
@@ -415,12 +390,11 @@ const Register: React.FC = () => {
                     <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                     <select
                       {...register('department')}
-                      className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${
-                        errors.department ? 'border-red-300' : 'border-gray-300'
-                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                      className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${errors.department ? 'border-red-300' : 'border-gray-300'
+                        } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
                       onChange={(e) => {
-                        setSelectedDepartment(e.target.value);
-                        setValue('municipality', '');
+                        register('department').onChange(e); // Call original handler
+                        setValue('municipality', ''); // Reset municipality
                       }}
                     >
                       <option value="">Selecciona departamento</option>
@@ -440,13 +414,12 @@ const Register: React.FC = () => {
                     <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                     <select
                       {...register('municipality')}
-                      className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${
-                        errors.municipality ? 'border-red-300' : 'border-gray-300'
-                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
-                      disabled={!selectedDepartment}
+                      className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${errors.municipality ? 'border-red-300' : 'border-gray-300'
+                        } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                      disabled={!watch('department')}
                     >
                       <option value="">Selecciona municipio</option>
-                      {selectedDepartment && DEPARTMENTS[selectedDepartment as keyof typeof DEPARTMENTS]?.map(mun => (
+                      {watch('department') && DEPARTMENTS[watch('department') as keyof typeof DEPARTMENTS]?.map(mun => (
                         <option key={mun} value={mun}>{mun}</option>
                       ))}
                     </select>
@@ -463,9 +436,8 @@ const Register: React.FC = () => {
                   <textarea
                     {...register('address')}
                     rows={3}
-                    className={`appearance-none relative block w-full px-3 py-2 border ${
-                      errors.address ? 'border-red-300' : 'border-gray-300'
-                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                    className={`appearance-none relative block w-full px-3 py-2 border ${errors.address ? 'border-red-300' : 'border-gray-300'
+                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
                     placeholder="Vereda, kilómetro, referencias..."
                   />
                 </div>
@@ -483,9 +455,8 @@ const Register: React.FC = () => {
                       type="number"
                       step="0.1"
                       min="0.1"
-                      className={`appearance-none relative block w-full px-3 py-2 border ${
-                        errors.farmSize ? 'border-red-300' : 'border-gray-300'
-                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                      className={`appearance-none relative block w-full px-3 py-2 border ${errors.farmSize ? 'border-red-300' : 'border-gray-300'
+                        } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
                       placeholder="Ej: 5.5"
                     />
                   </div>
@@ -501,9 +472,8 @@ const Register: React.FC = () => {
                       {...register('experience', { valueAsNumber: true })}
                       type="number"
                       min="0"
-                      className={`appearance-none relative block w-full px-3 py-2 border ${
-                        errors.experience ? 'border-red-300' : 'border-gray-300'
-                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+                      className={`appearance-none relative block w-full px-3 py-2 border ${errors.experience ? 'border-red-300' : 'border-gray-300'
+                        } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
                       placeholder="Ej: 10"
                     />
                   </div>
@@ -537,7 +507,7 @@ const Register: React.FC = () => {
           {step === 3 && (
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Cultivo y Certificaciones</h3>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Variedades de Café <span className="text-red-500">*</span>

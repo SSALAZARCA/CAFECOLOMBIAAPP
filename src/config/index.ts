@@ -128,7 +128,7 @@ export const validateConfiguration = (): ConfigValidationResult => {
   // Validate API configuration
   const appConfig = getAppConfig();
   const isDevelopment = appConfig.environment === 'development';
-  
+
   // In development mode, allow empty baseUrl for Vite proxy
   if (!appConfig.api.baseUrl && !isDevelopment) {
     errors.push('API base URL is required');
@@ -143,7 +143,7 @@ export const validateConfiguration = (): ConfigValidationResult => {
   if (!isDevelopment) {
     const requiredEnvVars = ['VITE_API_URL'];
     const missingEnvVars = requiredEnvVars.filter(varName => !import.meta.env[varName]);
-    
+
     if (missingEnvVars.length > 0) {
       errors.push(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
     }
@@ -195,7 +195,7 @@ export const getConfigurationSummary = () => {
 // Initialize all configurations
 export const initializeConfiguration = async () => {
   console.log('🚀 Initializing CaféColombia PWA configuration...');
-  
+
   const summary = getConfigurationSummary();
   console.log('📊 Configuration summary:', summary);
 
@@ -207,7 +207,7 @@ export const initializeConfiguration = async () => {
   const validation = validateConfiguration();
   if (!validation.isValid) {
     console.error('❌ Configuration validation failed:', validation.errors);
-    
+
     // In development mode, only warn about missing configurations instead of throwing
     const environment = getAppEnvironment();
     if (environment === 'development') {

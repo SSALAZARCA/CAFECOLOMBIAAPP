@@ -41,8 +41,7 @@ class BackendConnectionService {
         return normalized.endsWith('/api') ? normalized : `${normalized}/api`;
       }
       return `${window.location.origin.replace(/\/$/, '')}/api`;
-    })(),
-    'http://127.0.0.1:3001/api'
+    })()
   ].filter((url, index, arr) => arr.indexOf(url) === index);
 
   private currentBaseUrl = this.baseUrls[0];
@@ -54,17 +53,17 @@ class BackendConnectionService {
       this.healthCheckInterval_ms = 60000; // 1 minuto en desarrollo
       this.maxRetries = 2; // Menos reintentos en desarrollo
     }
-    
+
     console.log('🔧 BackendConnectionService initialized');
     console.log('🔧 Available URLs:', this.baseUrls);
     console.log('🔧 Current URL:', this.currentBaseUrl);
     console.log('🔧 Environment:', this.isDevelopment ? 'development' : 'production');
-    
+
     // DESACTIVAR COMPLETAMENTE todos los event listeners automáticos en desarrollo
     if (!this.isDevelopment) {
       this.setupEventListeners();
     }
-    
+
     // En desarrollo, no iniciar health check automáticamente para evitar errores ERR_ABORTED
     if (!this.isDevelopment) {
       setTimeout(() => {
@@ -80,8 +79,8 @@ class BackendConnectionService {
     // En desarrollo, no hacer peticiones para evitar ERR_ABORTED
     if (this.isDevelopment) {
       console.log('🔧 tryMultipleUrls skipped in development mode');
-      return { 
-        success: true, 
+      return {
+        success: true,
         url: this.currentBaseUrl,
         response: new Response(JSON.stringify({ status: 'healthy', message: 'Development mode' }), {
           status: 200,
@@ -95,7 +94,7 @@ class BackendConnectionService {
         if (this.isDevelopment) {
           console.log(`🔧 Trying URL: ${baseUrl}${this.healthEndpoint}`);
         }
-        
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // Reducir timeout a 5 segundos
 
@@ -153,7 +152,7 @@ class BackendConnectionService {
 
       if (result.success && result.response) {
         const healthData: BackendHealthResponse = await result.response.json();
-        
+
         this.connectionStatus = {
           isConnected: true,
           lastChecked: new Date(),
@@ -181,7 +180,7 @@ class BackendConnectionService {
       } else {
         // No lanzar error, solo actualizar el estado
         const errorMessage = result.error || 'All connection attempts failed';
-        
+
         this.connectionStatus = {
           isConnected: false,
           lastChecked: new Date(),
@@ -200,7 +199,7 @@ class BackendConnectionService {
       }
     } catch (error: any) {
       const errorMessage = this.getErrorMessage(error);
-      
+
       this.connectionStatus = {
         isConnected: false,
         lastChecked: new Date(),
@@ -332,12 +331,12 @@ class BackendConnectionService {
     try {
       const cacheKey = `api_cache_${endpoint.replace(/[^a-zA-Z0-9]/g, '_')}`;
       const cached = localStorage.getItem(cacheKey);
-      
+
       if (cached) {
         const cacheData = JSON.parse(cached);
         const age = Date.now() - cacheData.timestamp;
         const maxAge = 5 * 60 * 1000; // 5 minutos
-        
+
         if (age < maxAge) {
           return cacheData.data;
         } else {
@@ -347,7 +346,7 @@ class BackendConnectionService {
     } catch (error) {
       console.warn('Failed to get cached data:', error);
     }
-    
+
     return null;
   }
 
@@ -357,7 +356,7 @@ class BackendConnectionService {
   private startHealthCheck(): void {
     // Verificación inicial
     this.checkHealth();
-    
+
     // Verificaciones periódicas
     this.healthCheckInterval = setInterval(() => {
       this.checkHealth();
@@ -397,15 +396,15 @@ class BackendConnectionService {
     if (error.name === 'AbortError') {
       return 'Timeout de conexión';
     }
-    
+
     if (error.message?.includes('fetch')) {
       return 'Error de red - servidor no disponible';
     }
-    
+
     if (error.message?.includes('CORS')) {
       return 'Error de CORS - configuración del servidor';
     }
-    
+
     return error.message || 'Error desconocido';
   }
 
@@ -441,7 +440,7 @@ class BackendConnectionService {
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
     }
-    
+
     if (this.retryTimeout) {
       clearTimeout(this.retryTimeout);
     }
@@ -483,7 +482,7 @@ export const useBackendConnection = () => {
 
   React.useEffect(() => {
     const isDev = import.meta.env.DEV;
-    
+
     if (isDev) {
       // En desarrollo, no hacer polling automático
       return;

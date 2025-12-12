@@ -26,9 +26,10 @@ import type {
 // =====================================================
 
 // Forzar IPv4 directo y evitar proxy /api
-const API_BASE_URL = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http'))
-  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
-  : `${window.location.origin.replace(/\/$/, '')}/api`;
+// Forzar IPv4 directo y evitar proxy /api
+const API_BASE_URL = import.meta.env.PROD
+  ? '/api'
+  : (import.meta.env.VITE_API_URL || 'http://localhost:3002/api');
 
 class AdminApiService {
   private baseURL: string;
@@ -67,7 +68,7 @@ class AdminApiService {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
-    
+
     const config: RequestInit = {
       ...options,
       headers: {
@@ -155,7 +156,7 @@ class AdminApiService {
 
   async refreshSession(): Promise<AdminSession> {
     const response = await this.post<AdminSession>('/auth/admin/refresh');
-    
+
     if (response.success && response.data) {
       this.setToken(response.data.token);
       return response.data;
@@ -166,7 +167,7 @@ class AdminApiService {
 
   async enable2FA(): Promise<string> {
     const response = await this.post<{ qr_code: string }>('/auth/admin/2fa/enable');
-    
+
     if (response.success && response.data) {
       return response.data.qr_code;
     }
@@ -176,7 +177,7 @@ class AdminApiService {
 
   async verify2FA(code: string): Promise<boolean> {
     const response = await this.post<{ verified: boolean }>('/auth/admin/2fa/verify', { code });
-    
+
     if (response.success && response.data) {
       return response.data.verified;
     }
@@ -186,7 +187,7 @@ class AdminApiService {
 
   async disable2FA(code: string): Promise<boolean> {
     const response = await this.post<{ disabled: boolean }>('/auth/admin/2fa/disable', { code });
-    
+
     if (response.success && response.data) {
       return response.data.disabled;
     }
@@ -200,8 +201,8 @@ class AdminApiService {
 
   async getUsers(params?: Record<string, any>): Promise<PaginatedResponse<SystemUser>> {
     const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
-    const response = await this.get<PaginatedResponse<SystemUser>>(`/users${queryString}`);
-    
+    const response = await this.get<PaginatedResponse<SystemUser>>(`/admin/users${queryString}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -210,8 +211,8 @@ class AdminApiService {
   }
 
   async getUser(id: string): Promise<SystemUser> {
-    const response = await this.get<SystemUser>(`/users/${id}`);
-    
+    const response = await this.get<SystemUser>(`/admin/users/${id}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -220,8 +221,8 @@ class AdminApiService {
   }
 
   async createUser(userData: Partial<SystemUser>): Promise<SystemUser> {
-    const response = await this.post<SystemUser>('/users', userData);
-    
+    const response = await this.post<SystemUser>('/admin/users', userData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -230,8 +231,8 @@ class AdminApiService {
   }
 
   async updateUser(id: string, userData: Partial<SystemUser>): Promise<SystemUser> {
-    const response = await this.put<SystemUser>(`/users/${id}`, userData);
-    
+    const response = await this.put<SystemUser>(`/admin/users/${id}`, userData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -240,16 +241,16 @@ class AdminApiService {
   }
 
   async deleteUser(id: string): Promise<void> {
-    const response = await this.delete(`/users/${id}`);
-    
+    const response = await this.delete(`/admin/users/${id}`);
+
     if (!response.success) {
       throw new Error(response.message || 'Error al eliminar usuario');
     }
   }
 
   async toggleUserStatus(id: string): Promise<SystemUser> {
-    const response = await this.patch<SystemUser>(`/users/${id}/toggle-status`);
-    
+    const response = await this.patch<SystemUser>(`/admin/users/${id}/toggle-status`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -260,8 +261,8 @@ class AdminApiService {
   async exportUsers(filters?: Record<string, any>): Promise<string> {
     const params = { ...filters, export: 'csv' };
     const queryString = `?${new URLSearchParams(params).toString()}`;
-    const response = await this.get<{ download_url: string }>(`/users/export${queryString}`);
-    
+    const response = await this.get<{ download_url: string }>(`/admin/users/export${queryString}`);
+
     if (response.success && response.data) {
       return response.data.download_url;
     }
@@ -275,8 +276,8 @@ class AdminApiService {
 
   async getCoffeeGrowers(params?: Record<string, any>): Promise<PaginatedResponse<CoffeeGrower>> {
     const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
-    const response = await this.get<PaginatedResponse<CoffeeGrower>>(`/coffee-growers${queryString}`);
-    
+    const response = await this.get<PaginatedResponse<CoffeeGrower>>(`/admin/coffee-growers${queryString}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -285,8 +286,8 @@ class AdminApiService {
   }
 
   async getCoffeeGrower(id: string): Promise<CoffeeGrower> {
-    const response = await this.get<CoffeeGrower>(`/coffee-growers/${id}`);
-    
+    const response = await this.get<CoffeeGrower>(`/admin/coffee-growers/${id}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -295,8 +296,8 @@ class AdminApiService {
   }
 
   async createCoffeeGrower(growerData: Partial<CoffeeGrower>): Promise<CoffeeGrower> {
-    const response = await this.post<CoffeeGrower>('/coffee-growers', growerData);
-    
+    const response = await this.post<CoffeeGrower>('/admin/coffee-growers', growerData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -305,8 +306,8 @@ class AdminApiService {
   }
 
   async updateCoffeeGrower(id: string, growerData: Partial<CoffeeGrower>): Promise<CoffeeGrower> {
-    const response = await this.put<CoffeeGrower>(`/coffee-growers/${id}`, growerData);
-    
+    const response = await this.put<CoffeeGrower>(`/admin/coffee-growers/${id}`, growerData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -315,8 +316,8 @@ class AdminApiService {
   }
 
   async deleteCoffeeGrower(id: string): Promise<void> {
-    const response = await this.delete(`/coffee-growers/${id}`);
-    
+    const response = await this.delete(`/admin/coffee-growers/${id}`);
+
     if (!response.success) {
       throw new Error(response.message || 'Error al eliminar caficoltor');
     }
@@ -325,8 +326,8 @@ class AdminApiService {
   async exportCoffeeGrowers(filters?: Record<string, any>): Promise<string> {
     const params = { ...filters, export: 'csv' };
     const queryString = `?${new URLSearchParams(params).toString()}`;
-    const response = await this.get<{ download_url: string }>(`/coffee-growers/export${queryString}`);
-    
+    const response = await this.get<{ download_url: string }>(`/admin/coffee-growers/export${queryString}`);
+
     if (response.success && response.data) {
       return response.data.download_url;
     }
@@ -340,8 +341,8 @@ class AdminApiService {
 
   async getFarms(params?: Record<string, any>): Promise<PaginatedResponse<Farm>> {
     const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
-    const response = await this.get<PaginatedResponse<Farm>>(`/farms${queryString}`);
-    
+    const response = await this.get<PaginatedResponse<Farm>>(`/admin/farms${queryString}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -350,8 +351,8 @@ class AdminApiService {
   }
 
   async getFarm(id: string): Promise<Farm> {
-    const response = await this.get<Farm>(`/farms/${id}`);
-    
+    const response = await this.get<Farm>(`/admin/farms/${id}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -360,8 +361,8 @@ class AdminApiService {
   }
 
   async createFarm(farmData: Partial<Farm>): Promise<Farm> {
-    const response = await this.post<Farm>('/farms', farmData);
-    
+    const response = await this.post<Farm>('/admin/farms', farmData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -370,8 +371,8 @@ class AdminApiService {
   }
 
   async updateFarm(id: string, farmData: Partial<Farm>): Promise<Farm> {
-    const response = await this.put<Farm>(`/farms/${id}`, farmData);
-    
+    const response = await this.put<Farm>(`/admin/farms/${id}`, farmData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -380,8 +381,8 @@ class AdminApiService {
   }
 
   async deleteFarm(id: string): Promise<void> {
-    const response = await this.delete(`/farms/${id}`);
-    
+    const response = await this.delete(`/admin/farms/${id}`);
+
     if (!response.success) {
       throw new Error(response.message || 'Error al eliminar finca');
     }
@@ -390,8 +391,8 @@ class AdminApiService {
   async exportFarms(filters?: Record<string, any>): Promise<string> {
     const params = { ...filters, export: 'csv' };
     const queryString = `?${new URLSearchParams(params).toString()}`;
-    const response = await this.get<{ download_url: string }>(`/farms/export${queryString}`);
-    
+    const response = await this.get<{ download_url: string }>(`/admin/farms/export${queryString}`);
+
     if (response.success && response.data) {
       return response.data.download_url;
     }
@@ -405,8 +406,8 @@ class AdminApiService {
 
   async getSubscriptionPlans(params?: Record<string, any>): Promise<PaginatedResponse<SubscriptionPlan>> {
     const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
-    const response = await this.get<PaginatedResponse<SubscriptionPlan>>(`/subscription-plans${queryString}`);
-    
+    const response = await this.get<PaginatedResponse<SubscriptionPlan>>(`/admin/subscription-plans${queryString}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -415,8 +416,8 @@ class AdminApiService {
   }
 
   async getSubscriptionPlan(id: string): Promise<SubscriptionPlan> {
-    const response = await this.get<SubscriptionPlan>(`/subscription-plans/${id}`);
-    
+    const response = await this.get<SubscriptionPlan>(`/admin/subscription-plans/${id}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -425,8 +426,8 @@ class AdminApiService {
   }
 
   async createSubscriptionPlan(planData: Partial<SubscriptionPlan>): Promise<SubscriptionPlan> {
-    const response = await this.post<SubscriptionPlan>('/subscription-plans', planData);
-    
+    const response = await this.post<SubscriptionPlan>('/admin/subscription-plans', planData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -435,8 +436,8 @@ class AdminApiService {
   }
 
   async updateSubscriptionPlan(id: string, planData: Partial<SubscriptionPlan>): Promise<SubscriptionPlan> {
-    const response = await this.put<SubscriptionPlan>(`/subscription-plans/${id}`, planData);
-    
+    const response = await this.put<SubscriptionPlan>(`/admin/subscription-plans/${id}`, planData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -445,16 +446,16 @@ class AdminApiService {
   }
 
   async deleteSubscriptionPlan(id: string): Promise<void> {
-    const response = await this.delete(`/subscription-plans/${id}`);
-    
+    const response = await this.delete(`/admin/subscription-plans/${id}`);
+
     if (!response.success) {
       throw new Error(response.message || 'Error al eliminar plan de suscripción');
     }
   }
 
   async togglePlanStatus(id: string): Promise<SubscriptionPlan> {
-    const response = await this.patch<SubscriptionPlan>(`/subscription-plans/${id}/toggle-status`);
-    
+    const response = await this.patch<SubscriptionPlan>(`/admin/subscription-plans/${id}/toggle-status`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -468,8 +469,8 @@ class AdminApiService {
 
   async getSubscriptions(params?: Record<string, any>): Promise<PaginatedResponse<Subscription>> {
     const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
-    const response = await this.get<PaginatedResponse<Subscription>>(`/subscriptions${queryString}`);
-    
+    const response = await this.get<PaginatedResponse<Subscription>>(`/admin/subscriptions${queryString}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -478,8 +479,8 @@ class AdminApiService {
   }
 
   async getSubscription(id: string): Promise<Subscription> {
-    const response = await this.get<Subscription>(`/subscriptions/${id}`);
-    
+    const response = await this.get<Subscription>(`/admin/subscriptions/${id}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -488,8 +489,8 @@ class AdminApiService {
   }
 
   async createSubscription(subscriptionData: Partial<Subscription>): Promise<Subscription> {
-    const response = await this.post<Subscription>('/subscriptions', subscriptionData);
-    
+    const response = await this.post<Subscription>('/admin/subscriptions', subscriptionData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -498,8 +499,8 @@ class AdminApiService {
   }
 
   async updateSubscription(id: string, subscriptionData: Partial<Subscription>): Promise<Subscription> {
-    const response = await this.put<Subscription>(`/subscriptions/${id}`, subscriptionData);
-    
+    const response = await this.put<Subscription>(`/admin/subscriptions/${id}`, subscriptionData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -508,16 +509,16 @@ class AdminApiService {
   }
 
   async cancelSubscription(id: string, reason?: string): Promise<void> {
-    const response = await this.patch(`/subscriptions/${id}/cancel`, { reason });
-    
+    const response = await this.patch(`/admin/subscriptions/${id}/cancel`, { reason });
+
     if (!response.success) {
       throw new Error(response.message || 'Error al cancelar suscripción');
     }
   }
 
   async renewSubscription(id: string): Promise<Subscription> {
-    const response = await this.patch<Subscription>(`/subscriptions/${id}/renew`);
-    
+    const response = await this.patch<Subscription>(`/admin/subscriptions/${id}/renew`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -528,8 +529,8 @@ class AdminApiService {
   async exportSubscriptions(filters?: Record<string, any>): Promise<string> {
     const params = { ...filters, export: 'csv' };
     const queryString = `?${new URLSearchParams(params).toString()}`;
-    const response = await this.get<{ download_url: string }>(`/subscriptions/export${queryString}`);
-    
+    const response = await this.get<{ download_url: string }>(`/admin/subscriptions/export${queryString}`);
+
     if (response.success && response.data) {
       return response.data.download_url;
     }
@@ -543,8 +544,8 @@ class AdminApiService {
 
   async getPayments(params?: Record<string, any>): Promise<PaginatedResponse<Payment>> {
     const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
-    const response = await this.get<PaginatedResponse<Payment>>(`/payments${queryString}`);
-    
+    const response = await this.get<PaginatedResponse<Payment>>(`/admin/payments${queryString}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -553,8 +554,8 @@ class AdminApiService {
   }
 
   async getPayment(id: string): Promise<Payment> {
-    const response = await this.get<Payment>(`/payments/${id}`);
-    
+    const response = await this.get<Payment>(`/admin/payments/${id}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -563,8 +564,8 @@ class AdminApiService {
   }
 
   async createPayment(paymentData: Partial<Payment>): Promise<Payment> {
-    const response = await this.post<Payment>('/payments', paymentData);
-    
+    const response = await this.post<Payment>('/admin/payments', paymentData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -573,8 +574,8 @@ class AdminApiService {
   }
 
   async updatePayment(id: string, paymentData: Partial<Payment>): Promise<Payment> {
-    const response = await this.put<Payment>(`/payments/${id}`, paymentData);
-    
+    const response = await this.put<Payment>(`/admin/payments/${id}`, paymentData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -583,8 +584,8 @@ class AdminApiService {
   }
 
   async refundPayment(id: string, amount?: number, reason?: string): Promise<void> {
-    const response = await this.patch(`/payments/${id}/refund`, { amount, reason });
-    
+    const response = await this.patch(`/admin/payments/${id}/refund`, { amount, reason });
+
     if (!response.success) {
       throw new Error(response.message || 'Error al reembolsar pago');
     }
@@ -593,8 +594,8 @@ class AdminApiService {
   async exportPayments(filters?: Record<string, any>): Promise<string> {
     const params = { ...filters, export: 'csv' };
     const queryString = `?${new URLSearchParams(params).toString()}`;
-    const response = await this.get<{ download_url: string }>(`/payments/export${queryString}`);
-    
+    const response = await this.get<{ download_url: string }>(`/admin/payments/export${queryString}`);
+
     if (response.success && response.data) {
       return response.data.download_url;
     }
@@ -608,8 +609,8 @@ class AdminApiService {
 
   async getAuditLogs(params?: Record<string, any>): Promise<PaginatedResponse<AuditLog>> {
     const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
-    const response = await this.get<PaginatedResponse<AuditLog>>(`/audit${queryString}`);
-    
+    const response = await this.get<PaginatedResponse<AuditLog>>(`/admin/audit${queryString}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -620,8 +621,8 @@ class AdminApiService {
   async exportAuditLogs(filters?: Record<string, any>): Promise<string> {
     const params = { ...filters, export: 'csv' };
     const queryString = `?${new URLSearchParams(params).toString()}`;
-    const response = await this.get<{ download_url: string }>(`/audit/export${queryString}`);
-    
+    const response = await this.get<{ download_url: string }>(`/admin/audit/export${queryString}`);
+
     if (response.success && response.data) {
       return response.data.download_url;
     }
@@ -635,8 +636,8 @@ class AdminApiService {
 
   async getSystemConfigs(params?: Record<string, any>): Promise<PaginatedResponse<SystemConfig>> {
     const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
-    const response = await this.get<PaginatedResponse<SystemConfig>>(`/settings${queryString}`);
-    
+    const response = await this.get<PaginatedResponse<SystemConfig>>(`/admin/settings${queryString}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -645,8 +646,8 @@ class AdminApiService {
   }
 
   async updateSystemConfig(key: string, value: string): Promise<SystemConfig> {
-    const response = await this.put<SystemConfig>(`/settings/${key}`, { value });
-    
+    const response = await this.put<SystemConfig>(`/admin/settings/${key}`, { value });
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -655,8 +656,8 @@ class AdminApiService {
   }
 
   async createSystemConfig(configData: Partial<SystemConfig>): Promise<SystemConfig> {
-    const response = await this.post<SystemConfig>('/settings', configData);
-    
+    const response = await this.post<SystemConfig>('/admin/settings', configData);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -665,8 +666,8 @@ class AdminApiService {
   }
 
   async deleteSystemConfig(key: string): Promise<void> {
-    const response = await this.delete(`/settings/${key}`);
-    
+    const response = await this.delete(`/admin/settings/${key}`);
+
     if (!response.success) {
       throw new Error(response.message || 'Error al eliminar configuración');
     }
@@ -678,8 +679,8 @@ class AdminApiService {
 
   async getDashboardMetrics(dateRange?: { from: string; to: string }): Promise<DashboardMetrics> {
     const params = dateRange ? `?from=${dateRange.from}&to=${dateRange.to}` : '';
-    const response = await this.get<DashboardMetrics>(`/reports/dashboard${params}`);
-    
+    const response = await this.get<DashboardMetrics>(`/admin/reports/dashboard${params}`);
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -688,8 +689,8 @@ class AdminApiService {
   }
 
   async generateReport(type: string, filters?: ReportFilter): Promise<ReportData> {
-    const response = await this.post<ReportData>('/reports/generate', { type, filters });
-    
+    const response = await this.post<ReportData>('/admin/reports/generate', { type, filters });
+
     if (response.success && response.data) {
       return response.data;
     }
@@ -698,8 +699,8 @@ class AdminApiService {
   }
 
   async exportReport(reportId: string, format: 'csv' | 'pdf' | 'excel'): Promise<string> {
-    const response = await this.get<{ download_url: string }>(`/reports/${reportId}/export?format=${format}`);
-    
+    const response = await this.get<{ download_url: string }>(`/admin/reports/${reportId}/export?format=${format}`);
+
     if (response.success && response.data) {
       return response.data.download_url;
     }
@@ -719,7 +720,7 @@ class AdminApiService {
     }
 
     const response = await this.get<{ status: string; timestamp: string }>('/health');
-    
+
     if (response.success && response.data) {
       return response.data;
     }

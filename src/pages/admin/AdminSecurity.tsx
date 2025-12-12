@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useAdminStore } from '@/stores/adminStore';
-import { 
-  Shield, 
-  Lock, 
-  Key, 
-  Eye, 
+import { adminHttpClient } from '../../utils/adminHttpClient';
+import {
+  Shield,
+  Lock,
+  Key,
+  Eye,
   EyeOff,
   Save,
   RefreshCw,
@@ -14,11 +14,7 @@ import {
   Users,
   Clock,
   Smartphone,
-  Mail,
-  Globe,
-  Database,
   Server,
-  FileText,
   Download
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -86,7 +82,6 @@ interface SecurityRole {
 }
 
 export default function AdminSecurity() {
-  const { useAuthenticatedFetch } = useAdminStore();
   const [settings, setSettings] = useState<SecuritySettings | null>(null);
   const [roles, setRoles] = useState<SecurityRole[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,54 +91,32 @@ export default function AdminSecurity() {
   const [newRole, setNewRole] = useState({ name: '', description: '', permissions: [] as string[] });
   const [showRoleModal, setShowRoleModal] = useState(false);
 
-  const availablePermissions = [
-    'admin.dashboard.view',
-    'admin.users.view',
-    'admin.users.create',
-    'admin.users.edit',
-    'admin.users.delete',
-    'admin.coffee-growers.view',
-    'admin.coffee-growers.create',
-    'admin.coffee-growers.edit',
-    'admin.coffee-growers.delete',
-    'admin.farms.view',
-    'admin.farms.create',
-    'admin.farms.edit',
-    'admin.farms.delete',
-    'admin.subscription-plans.view',
-    'admin.subscription-plans.create',
-    'admin.subscription-plans.edit',
-    'admin.subscription-plans.delete',
-    'admin.subscriptions.view',
-    'admin.subscriptions.manage',
-    'admin.payments.view',
-    'admin.payments.refund',
-    'admin.reports.view',
-    'admin.reports.export',
-    'admin.audit.view',
-    'admin.security.view',
-    'admin.security.edit',
-    'admin.settings.view',
-    'admin.settings.edit'
-  ];
-
   const fetchSecurityData = async () => {
     try {
       setLoading(true);
-      const [settingsResponse, rolesResponse] = await Promise.all([
-        useAuthenticatedFetch('/admin/security/settings'),
-        useAuthenticatedFetch('/admin/security/roles')
-      ]);
 
-      if (settingsResponse.ok) {
-        const settingsData = await settingsResponse.json();
-        setSettings(settingsData.settings);
+      // Cargar configuraciones
+      try {
+        const settingsData = await adminHttpClient.get('/api/admin/security/settings');
+        if (settingsData && settingsData.settings) {
+          setSettings(settingsData.settings);
+        }
+      } catch (err) {
+        console.error('Error loading settings:', err);
+        toast.error('Error al cargar configuraciones');
       }
 
-      if (rolesResponse.ok) {
-        const rolesData = await rolesResponse.json();
-        setRoles(rolesData.roles || []);
+      // Cargar roles
+      try {
+        const rolesData = await adminHttpClient.get('/api/admin/security/roles');
+        if (rolesData && rolesData.roles) {
+          setRoles(rolesData.roles);
+        }
+      } catch (err) {
+        console.error('Error loading roles:', err);
+        toast.error('Error al cargar roles');
       }
+
     } catch (error) {
       console.error('Error fetching security data:', error);
       toast.error('Error de conexión');
@@ -161,20 +134,11 @@ export default function AdminSecurity() {
 
     try {
       setSaving(true);
-      const response = await useAuthenticatedFetch('/admin/security/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-      });
-
-      if (response.ok) {
-        toast.success('Configuración de seguridad guardada');
-      } else {
-        toast.error('Error al guardar configuración');
-      }
+      await adminHttpClient.put('/api/admin/security/settings', settings);
+      toast.success('Configuración de seguridad guardada');
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast.error('Error de conexión');
+      toast.error('Error al guardar configuración');
     } finally {
       setSaving(false);
     }
@@ -187,24 +151,14 @@ export default function AdminSecurity() {
     }
 
     try {
-      const response = await useAuthenticatedFetch('/admin/security/roles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newRole)
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setRoles([...roles, data.role]);
-        setNewRole({ name: '', description: '', permissions: [] });
-        setShowRoleModal(false);
-        toast.success('Rol creado exitosamente');
-      } else {
-        toast.error('Error al crear rol');
-      }
+      const data = await adminHttpClient.post('/api/admin/security/roles', newRole);
+      setRoles([...roles, data.role]);
+      setNewRole({ name: '', description: '', permissions: [] });
+      setShowRoleModal(false);
+      toast.success('Rol creado exitosamente');
     } catch (error) {
       console.error('Error creating role:', error);
-      toast.error('Error de conexión');
+      toast.error('Error al crear rol');
     }
   };
 
@@ -220,62 +174,33 @@ export default function AdminSecurity() {
     if (!confirm(`¿Estás seguro de que quieres eliminar el rol "${role.name}"?`)) return;
 
     try {
-      const response = await useAuthenticatedFetch(`/admin/security/roles/${roleId}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        setRoles(roles.filter(r => r.id !== roleId));
-        toast.success('Rol eliminado exitosamente');
-      } else {
-        toast.error('Error al eliminar rol');
-      }
+      await adminHttpClient.delete(`/api/admin/security/roles/${roleId}`);
+      setRoles(roles.filter(r => r.id !== roleId));
+      toast.success('Rol eliminado exitosamente');
     } catch (error) {
       console.error('Error deleting role:', error);
-      toast.error('Error de conexión');
+      toast.error('Error al eliminar rol');
     }
   };
 
   const generateApiKey = async () => {
     try {
-      const response = await useAuthenticatedFetch('/admin/security/api-key/generate', {
-        method: 'POST'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast.success('Nueva API Key generada');
-        // Mostrar la nueva API key de forma segura
-        alert(`Nueva API Key: ${data.apiKey}\n\nGuarda esta clave de forma segura. No se mostrará nuevamente.`);
-      } else {
-        toast.error('Error al generar API Key');
-      }
+      const data = await adminHttpClient.post('/api/admin/security/api-key/generate', {});
+      toast.success('Nueva API Key generada');
+      alert(`Nueva API Key: ${data.apiKey}\n\nGuarda esta clave de forma segura. No se mostrará nuevamente.`);
     } catch (error) {
       console.error('Error generating API key:', error);
-      toast.error('Error de conexión');
+      toast.error('Error al generar API Key');
     }
   };
 
   const exportSecurityReport = async () => {
     try {
-      const response = await useAuthenticatedFetch('/admin/security/report/export');
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `security-report-${new Date().toISOString().split('T')[0]}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        toast.success('Reporte de seguridad exportado');
-      } else {
-        toast.error('Error al exportar reporte');
-      }
+      const response = await adminHttpClient.get('/api/admin/security/report/export');
+      toast.info('Funcionalidad de exportación en desarrollo');
     } catch (error) {
       console.error('Error exporting security report:', error);
-      toast.error('Error de conexión');
+      toast.error('Error al exportar reporte');
     }
   };
 
@@ -292,12 +217,18 @@ export default function AdminSecurity() {
       <div className="text-center py-12">
         <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <p className="text-gray-500">No se pudieron cargar las configuraciones de seguridad</p>
+        <button
+          onClick={fetchSecurityData}
+          className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+        >
+          Reintentar
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -310,21 +241,21 @@ export default function AdminSecurity() {
           </p>
         </div>
         <div className="flex gap-3">
-          <button 
+          <button
             onClick={fetchSecurityData}
             className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
             <RefreshCw className="h-4 w-4" />
             Actualizar
           </button>
-          <button 
+          <button
             onClick={exportSecurityReport}
             className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
             <Download className="h-4 w-4" />
             Reporte
           </button>
-          <button 
+          <button
             onClick={saveSettings}
             disabled={saving}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
@@ -340,33 +271,30 @@ export default function AdminSecurity() {
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('settings')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'settings'
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'settings'
                 ? 'border-emerald-500 text-emerald-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             <Settings className="h-4 w-4 inline mr-2" />
             Configuraciones
           </button>
           <button
             onClick={() => setActiveTab('roles')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'roles'
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'roles'
                 ? 'border-emerald-500 text-emerald-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             <Users className="h-4 w-4 inline mr-2" />
             Roles y Permisos
           </button>
           <button
             onClick={() => setActiveTab('monitoring')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'monitoring'
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'monitoring'
                 ? 'border-emerald-500 text-emerald-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             <Eye className="h-4 w-4 inline mr-2" />
             Monitoreo
@@ -506,46 +434,6 @@ export default function AdminSecurity() {
             </div>
           </div>
 
-          {/* Two Factor Authentication */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Smartphone className="h-5 w-5" />
-              Autenticación de Dos Factores
-            </h3>
-            <div className="space-y-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={settings.twoFactorAuth.enabled}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    twoFactorAuth: {
-                      ...settings.twoFactorAuth,
-                      enabled: e.target.checked
-                    }
-                  })}
-                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">Habilitar 2FA</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={settings.twoFactorAuth.required}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    twoFactorAuth: {
-                      ...settings.twoFactorAuth,
-                      required: e.target.checked
-                    }
-                  })}
-                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">Requerir 2FA para todos los usuarios</span>
-              </label>
-            </div>
-          </div>
-
           {/* API Security */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -590,29 +478,6 @@ export default function AdminSecurity() {
                   </button>
                 </div>
               </div>
-            </div>
-            <div className="mt-4 space-y-2">
-              {[
-                { key: 'rateLimitEnabled', label: 'Habilitar límite de velocidad' },
-                { key: 'requireApiKey', label: 'Requerir API Key' },
-                { key: 'enableCors', label: 'Habilitar CORS' }
-              ].map(({ key, label }) => (
-                <label key={key} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={settings.apiSecurity[key as keyof typeof settings.apiSecurity] as boolean}
-                    onChange={(e) => setSettings({
-                      ...settings,
-                      apiSecurity: {
-                        ...settings.apiSecurity,
-                        [key]: e.target.checked
-                      }
-                    })}
-                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">{label}</span>
-                </label>
-              ))}
             </div>
           </div>
         </div>
@@ -739,28 +604,6 @@ export default function AdminSecurity() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
               </div>
-              <div className="space-y-2">
-                {[
-                  { key: 'realTimeAlerts', label: 'Alertas en tiempo real' },
-                  { key: 'emailNotifications', label: 'Notificaciones por email' }
-                ].map(({ key, label }) => (
-                  <label key={key} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={settings.auditSettings[key as keyof typeof settings.auditSettings] as boolean}
-                      onChange={(e) => setSettings({
-                        ...settings,
-                        auditSettings: {
-                          ...settings.auditSettings,
-                          [key]: e.target.checked
-                        }
-                      })}
-                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">{label}</span>
-                  </label>
-                ))}
-              </div>
             </div>
           </div>
         </div>
@@ -779,7 +622,7 @@ export default function AdminSecurity() {
                 <AlertTriangle className="h-6 w-6" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -799,43 +642,13 @@ export default function AdminSecurity() {
                 <textarea
                   value={newRole.description}
                   onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
-                  rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  rows={3}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Permisos
-                </label>
-                <div className="max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-3">
-                  {availablePermissions.map((permission) => (
-                    <label key={permission} className="flex items-center mb-2">
-                      <input
-                        type="checkbox"
-                        checked={newRole.permissions.includes(permission)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setNewRole({
-                              ...newRole,
-                              permissions: [...newRole.permissions, permission]
-                            });
-                          } else {
-                            setNewRole({
-                              ...newRole,
-                              permissions: newRole.permissions.filter(p => p !== permission)
-                            });
-                          }
-                        }}
-                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">{permission}</span>
-                    </label>
-                  ))}
-                </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={() => setShowRoleModal(false)}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"

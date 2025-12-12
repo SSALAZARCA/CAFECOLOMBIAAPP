@@ -46,6 +46,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     // Verificar jerarquía de roles
     const roleHierarchy = {
       'super_admin': 3,
+      'ADMINISTRADOR': 3,
       'admin': 2,
       'moderator': 1
     };
@@ -99,7 +100,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     console.log('🔑 currentAdmin.permissions:', currentAdmin.permissions);
     console.log('⭐ currentAdmin.is_super_admin:', currentAdmin.is_super_admin);
     console.log('🌟 currentAdmin.role:', currentAdmin.role);
-    
+
     // Super admin tiene todos los permisos
     if (currentAdmin.is_super_admin) {
       console.log('✅ Super admin detectado - permitiendo acceso');
@@ -115,7 +116,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         console.log(`🔐 Permiso "${permission}": ${hasPermission ? '✅' : '❌'}`);
         return hasPermission;
       });
-      
+
       console.log('📊 Resultado final hasAllPermissions:', hasAllPermissions);
 
       if (!hasAllPermissions) {

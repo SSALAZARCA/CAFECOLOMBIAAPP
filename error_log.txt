@@ -1,0 +1,73 @@
+﻿[dotenv@17.2.3] injecting env (45) from api\.env -- tip: ­ƒùé´©Å backup and recover secrets: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (18) from .env -- tip: ÔÜÖ´©Å  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ÔÜÖ´©Å  write to custom object with { processEnv: myObject }
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ­ƒùé´©Å backup and recover secrets: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ­ƒöÉ prevent committing .env to code: https://dotenvx.com/precommit
+node : 
+D:\DESARROLLOS\CAFE C
+OLOMBIA\api\routes\ad
+min\subscriptions.cjs
+:54
+En línea: 1 
+Carácter: 1
++ node 
+api/server.cjs 2>&1 
+| Out-File -FilePath 
+error_log.txt 
+-Encoding ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (D:\DESA   
+ RROLLOS\...ripti    
+ons.cjs:54:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+        });
+         ^
+
+SyntaxError: 
+Unexpected token ')'
+    at internalCompil
+eFunction (node:inter
+nal/vm:73:18)
+    at wrapSafe (node
+:internal/modules/cjs
+/loader:1178:20)
+    at 
+Module._compile (node
+:internal/modules/cjs
+/loader:1220:27)
+    at Module._extens
+ions..js (node:intern
+al/modules/cjs/loader
+:1310:10)
+    at Module.load (n
+ode:internal/modules/
+cjs/loader:1119:32)
+    at Module._load (
+node:internal/modules
+/cjs/loader:960:12)
+    at 
+Module.require (node:
+internal/modules/cjs/
+loader:1143:19)
+    at require (node:
+internal/modules/cjs/
+helpers:110:18)
+    at 
+Object.<anonymous> 
+(D:\DESARROLLOS\CAFE 
+COLOMBIA\api\server.c
+js:548:34)
+    at 
+Module._compile (node
+:internal/modules/cjs
+/loader:1256:14)
+
+Node.js v18.17.0

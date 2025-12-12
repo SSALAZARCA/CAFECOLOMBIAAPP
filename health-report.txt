@@ -1,0 +1,127 @@
+{
+  "timestamp": "2025-12-01T01:59:14.496Z",
+  "overall": "error",
+  "checks": {
+    "network": {
+      "status": "healthy",
+      "tests": [
+        {
+          "name": "Google DNS",
+          "host": "8.8.8.8",
+          "status": "success",
+          "responseTime": 44
+        },
+        {
+          "name": "Cloudflare DNS",
+          "host": "1.1.1.1",
+          "status": "success",
+          "responseTime": 91
+        }
+      ],
+      "details": "2/2 pruebas de conectividad exitosas"
+    },
+    "database": {
+      "status": "error",
+      "error": "Table 'u689528678_CAFECOLOMBIA.fincas' doesn't exist",
+      "details": "Error conectando a la base de datos"
+    },
+    "api": {
+      "status": "error",
+      "endpoints": [
+        {
+          "name": "Health Check",
+          "path": "/api/health",
+          "status": "error",
+          "error": "fetch failed"
+        },
+        {
+          "name": "Auth Status",
+          "path": "/api/auth/status",
+          "status": "error",
+          "error": "fetch failed"
+        },
+        {
+          "name": "Fincas List",
+          "path": "/api/fincas",
+          "status": "error",
+          "error": "fetch failed"
+        }
+      ],
+      "avgResponseTime": 0,
+      "details": "0/3 endpoints funcionando"
+    },
+    "redis": {
+      "status": "info",
+      "details": "Redis no configurado"
+    },
+    "files": {
+      "status": "healthy",
+      "files": [
+        {
+          "path": "package.json",
+          "status": "exists",
+          "size": 4509,
+          "modified": "2025-11-04T03:38:29.701Z"
+        },
+        {
+          "path": ".env",
+          "status": "exists",
+          "size": 1230,
+          "modified": "2025-11-04T04:52:51.554Z"
+        },
+        {
+          "path": "api/package.json",
+          "status": "exists",
+          "size": 1547,
+          "modified": "2025-11-03T05:01:08.468Z"
+        },
+        {
+          "path": "api/.env",
+          "status": "exists",
+          "size": 2080,
+          "modified": "2025-11-04T04:48:28.164Z"
+        },
+        {
+          "path": "dist/index.html",
+          "status": "exists",
+          "size": 26453,
+          "modified": "2025-11-04T05:15:06.297Z"
+        },
+        {
+          "path": "api/dist/server.js",
+          "status": "optional",
+          "error": "ENOENT"
+        }
+      ],
+      "missingRequired": [],
+      "details": "Todos los archivos críticos presentes"
+    },
+    "services": {
+      "status": "healthy",
+      "services": [
+        {
+          "name": "Node.js",
+          "status": "running",
+          "version": "v18.17.0"
+        },
+        {
+          "name": "npm",
+          "status": "running",
+          "version": "9.6.7"
+        },
+        {
+          "name": "PM2",
+          "status": "not_installed",
+          "details": "PM2 no instalado"
+        },
+        {
+          "name": "MySQL",
+          "status": "not_available",
+          "details": "MySQL CLI no disponible"
+        }
+      ],
+      "runningServices": 2,
+      "details": "2 servicios verificados"
+    }
+  }
+}

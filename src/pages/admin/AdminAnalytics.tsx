@@ -88,7 +88,7 @@ const AdminAnalytics: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const data = await adminHttpClient.get(`/admin/analytics?period=${selectedPeriod}`);
+      const data = await adminHttpClient.get(`/api/admin/analytics?period=${selectedPeriod}`);
       setAnalyticsData(data);
       
     } catch (error) {

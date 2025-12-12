@@ -4,8 +4,13 @@ import { useNavigate } from 'react-router-dom';
 interface User {
   id: string;
   nombre: string;
+  name?: string; // Add name property used in new login calls
   email: string;
   tipo_usuario: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+  phone?: string;
 }
 
 export const useAuth = () => {
@@ -23,14 +28,25 @@ export const useAuth = () => {
     try {
       const token = localStorage.getItem('token');
       const userData = localStorage.getItem('user');
-      
-      if (token && userData) {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
+
+      if (token && userData && userData !== 'undefined') {
+        try {
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+        } catch (e) {
+          console.error('Error parsing user data:', e);
+          // Data corrupta, limpiar
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          setUser(null);
+          setIsAuthenticated(false);
+        }
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        // Limpiar basura si existe
+        if (userData === 'undefined') localStorage.removeItem('user');
       }
     } catch (error) {
       console.error('Error checking auth:', error);
@@ -42,6 +58,10 @@ export const useAuth = () => {
   };
 
   const login = (token: string, userData: User) => {
+    if (!userData) {
+      console.error('Intento de login con usuario undefined');
+      return;
+    }
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);

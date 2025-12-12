@@ -1,0 +1,136 @@
+{
+  "timestamp": "2025-12-01T02:44:09.760Z",
+  "overall": "warning",
+  "checks": {
+    "network": {
+      "status": "healthy",
+      "tests": [
+        {
+          "name": "Google DNS",
+          "host": "8.8.8.8",
+          "status": "success",
+          "responseTime": 37
+        },
+        {
+          "name": "Cloudflare DNS",
+          "host": "1.1.1.1",
+          "status": "success",
+          "responseTime": 84
+        }
+      ],
+      "details": "2/2 pruebas de conectividad exitosas"
+    },
+    "database": {
+      "status": "healthy",
+      "connectionTime": 708,
+      "tableCount": 16,
+      "missingTables": [],
+      "userCount": 2,
+      "fincaCount": 1,
+      "orphanedLotes": 0,
+      "sizeInMB": "0.69",
+      "details": "Base de datos funcionando correctamente"
+    },
+    "api": {
+      "status": "warning",
+      "endpoints": [
+        {
+          "name": "Health Check",
+          "path": "/api/health",
+          "status": "success",
+          "statusCode": 200,
+          "responseTime": 910
+        },
+        {
+          "name": "Auth Status",
+          "path": "/api/auth/status",
+          "status": "warning",
+          "statusCode": 404,
+          "responseTime": 5
+        },
+        {
+          "name": "Fincas List",
+          "path": "/api/fincas",
+          "status": "warning",
+          "statusCode": 404,
+          "responseTime": 2
+        }
+      ],
+      "avgResponseTime": 305.6666666666667,
+      "details": "1/3 endpoints funcionando"
+    },
+    "redis": {
+      "status": "info",
+      "details": "Redis no configurado"
+    },
+    "files": {
+      "status": "healthy",
+      "files": [
+        {
+          "path": "package.json",
+          "status": "exists",
+          "size": 4509,
+          "modified": "2025-11-04T03:38:29.701Z"
+        },
+        {
+          "path": ".env",
+          "status": "exists",
+          "size": 1330,
+          "modified": "2025-12-01T02:00:19.296Z"
+        },
+        {
+          "path": "api/package.json",
+          "status": "exists",
+          "size": 1547,
+          "modified": "2025-11-03T05:01:08.468Z"
+        },
+        {
+          "path": "api/.env",
+          "status": "exists",
+          "size": 2080,
+          "modified": "2025-11-04T04:48:28.164Z"
+        },
+        {
+          "path": "dist/index.html",
+          "status": "exists",
+          "size": 26453,
+          "modified": "2025-11-04T05:15:06.297Z"
+        },
+        {
+          "path": "api/dist/server.js",
+          "status": "optional",
+          "error": "ENOENT"
+        }
+      ],
+      "missingRequired": [],
+      "details": "Todos los archivos críticos presentes"
+    },
+    "services": {
+      "status": "healthy",
+      "services": [
+        {
+          "name": "Node.js",
+          "status": "running",
+          "version": "v18.17.0"
+        },
+        {
+          "name": "npm",
+          "status": "running",
+          "version": "9.6.7"
+        },
+        {
+          "name": "PM2",
+          "status": "not_installed",
+          "details": "PM2 no instalado"
+        },
+        {
+          "name": "MySQL",
+          "status": "not_available",
+          "details": "MySQL CLI no disponible"
+        }
+      ],
+      "runningServices": 2,
+      "details": "2 servicios verificados"
+    }
+  }
+}

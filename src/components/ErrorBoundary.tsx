@@ -156,12 +156,12 @@ class ErrorBoundary extends Component<Props, State> {
       // Por ahora solo guardamos en localStorage para debugging
       const existingErrors = JSON.parse(localStorage.getItem('app_errors') || '[]');
       existingErrors.push(errorReport);
-      
+
       // Mantener solo los últimos 10 errores
       if (existingErrors.length > 10) {
         existingErrors.splice(0, existingErrors.length - 10);
       }
-      
+
       localStorage.setItem('app_errors', JSON.stringify(existingErrors));
     } catch (reportingError) {
       console.error('Failed to report error:', reportingError);
@@ -216,9 +216,60 @@ class ErrorBoundary extends Component<Props, State> {
     const { children, fallback, showDetails = false } = this.props;
 
     if (hasError) {
-      // Modo silencioso: nunca bloquear la UI. Si hay fallback explícito, úsalo; si no, renderiza nada.
-      // Esto evita mostrar la pantalla de error y permite que el resto de la app funcione.
-      return fallback ?? null;
+      // Renderizar UI de fallback personalizada o la predeterminada
+      if (fallback) {
+        return fallback;
+      }
+
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center border border-red-100">
+            <div className="bg-red-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="h-8 w-8 text-red-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Algo salió mal</h2>
+            <p className="text-gray-600 mb-6">
+              Ha ocurrido un error inesperado. Por favor intenta recargar la página.
+            </p>
+
+            {/* Mostrar detalles del error siempre durante depuración */}
+            {error && (
+              <div className="bg-gray-100 p-4 rounded text-left mb-6 overflow-auto max-h-40 text-xs text-gray-700 font-mono border border-gray-200">
+                <p className="font-bold border-b border-gray-300 pb-2 mb-2 text-red-600">{error.toString()}</p>
+                {errorInfo?.componentStack}
+              </div>
+            )}
+
+            <div className="flex flex-col space-y-3">
+              <button
+                onClick={this.handleReload}
+                className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Recargar Página
+              </button>
+
+              <button
+                onClick={this.handleGoHome}
+                className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
+              >
+                <Home className="mr-2 h-4 w-4" />
+                Ir al Inicio
+              </button>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-gray-100">
+              <button
+                onClick={this.copyErrorDetails}
+                className="text-xs text-gray-400 hover:text-gray-600 flex items-center justify-center mx-auto"
+              >
+                <Bug className="h-3 w-3 mr-1" />
+                Copiar detalles del error para soporte
+              </button>
+            </div>
+          </div>
+        </div>
+      );
     }
 
     return children;
@@ -234,7 +285,6 @@ export const useErrorHandler = () => {
     if (errorInfo) {
       console.error('📍 Error Info:', errorInfo);
     }
-    // No relanzar el error en desarrollo para evitar que el ErrorBoundary bloquee la UI
   };
 };
 
@@ -248,8 +298,8 @@ export const withErrorBoundary = <P extends object>(
       <Component {...props} />
     </ErrorBoundary>
   );
-  
+
   WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
-  
+
   return WrappedComponent;
 };

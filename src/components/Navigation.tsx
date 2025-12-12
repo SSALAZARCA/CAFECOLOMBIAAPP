@@ -1,8 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, MapPin, Package, Bug, BarChart3, Settings, Brain, Target, TrendingUp } from 'lucide-react';
+import { Home, MapPin, Package, Bug, BarChart3, Settings, Brain, Target, TrendingUp, Users } from 'lucide-react';
 
 const navigationItems = [
-  { name: 'Dashboard', href: '/', icon: Home },
+  { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Gestión de Finca', href: '/finca', icon: MapPin },
   { name: 'Control de Insumos', href: '/insumos', icon: Package },
   { name: 'Manejo de Plagas', href: '/mip', icon: Bug },
@@ -10,6 +10,7 @@ const navigationItems = [
   { name: 'Optimización IA', href: '/optimizacion-ia', icon: Target },
   { name: 'Análisis de Mercado', href: '/analisis-mercado', icon: TrendingUp },
   { name: 'Trazabilidad', href: '/trazabilidad', icon: BarChart3 },
+  { name: 'Colaboradores', href: '/colaboradores', icon: Users },
   { name: 'Configuración', href: '/configuracion', icon: Settings },
 ];
 
@@ -33,9 +34,8 @@ export default function Navigation({ isOpen, onClose }: NavigationProps) {
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200">
@@ -52,11 +52,10 @@ export default function Navigation({ isOpen, onClose }: NavigationProps) {
                   key={item.name}
                   to={item.href}
                   onClick={onClose}
-                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
+                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${isActive
+                    ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
                 >
                   <Icon className="w-5 h-5 mr-3" />
                   {item.name}

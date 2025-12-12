@@ -25,31 +25,33 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Configuración de la base de datos (acepta ambas familias DB_* y MYSQL_*)
-const dbConfig = {
-  host: process.env.DB_HOST || process.env.MYSQL_HOST || 'srv1196.hstgr.io',
-  port: parseInt(process.env.DB_PORT || process.env.MYSQL_PORT || '3306'),
-  user: process.env.DB_USER || process.env.MYSQL_USER || 'u689528678_SSALAZARCA',
-  password: process.env.DB_PASSWORD || process.env.MYSQL_PASSWORD || '',
-  database: process.env.DB_NAME || process.env.MYSQL_DATABASE || 'u689528678_CAFECOLOMBIA',
-  charset: 'utf8mb4',
-  timezone: '+00:00',
-  ssl: {
-    rejectUnauthorized: false
-  }
-};
+const { dbConfig, pool } = require('./config/database.cjs');
 
 // Configuración de CORS
 const defaultOrigins = [
   'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176',
-  'http://localhost', 'http://localhost:80'
+  'http://localhost', 'http://localhost:80',
+  'http://127.0.0.1:5173', 'http://127.0.0.1:3001', // Add IP based origins
+  'http://192.168.1.13:5173' // Common local IP
 ];
 const envOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean) : [];
 const allowedOrigins = [...defaultOrigins, ...envOrigins];
 const corsOptions = {
-  origin: allowedOrigins,
+  // En desarrollo, permitir cualquier origen temporalmente si falla el match
+  origin: function (origin, callback) {
+    // Permitir requests sin origen (como curl o apps móviles)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1 || !process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      console.log('🚫 Bloqueado por CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Access-Control-Allow-Origin'],
   exposedHeaders: ['X-Total-Count', 'X-Page-Count']
 };
 
@@ -64,12 +66,12 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/api/ping-test', (req, res) => res.send('SERVER IS UPDATED'));
+
 // Función para probar conexión a MySQL
 async function testMySQLConnection() {
   try {
-    const connection = await mysql.createConnection(dbConfig);
-    await connection.execute('SELECT 1');
-    await connection.end();
+    const [rows] = await pool.execute('SELECT 1');
     return true;
   } catch (error) {
     console.error('Error conectando a MySQL:', error.message);
@@ -81,7 +83,7 @@ async function testMySQLConnection() {
 app.get('/api/health', async (req, res) => {
   try {
     const mysqlConnected = await testMySQLConnection();
-    
+
     const healthStatus = {
       status: mysqlConnected ? 'healthy' : 'degraded',
       message: 'Café Colombia API Server',
@@ -106,8 +108,8 @@ app.get('/api/health', async (req, res) => {
 
 // Ruta de ping simple
 app.get('/api/ping', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     message: 'pong',
     timestamp: new Date().toISOString()
   });
@@ -192,82 +194,85 @@ app.get('/api', (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
       return res.status(400).json({
         error: 'Email y contraseña son requeridos'
       });
     }
 
-    // Conectar a la base de datos
-    const connection = await mysql.createConnection(dbConfig);
-    
     try {
-      // Primero buscar en admin_users
-      const [adminUsers] = await connection.execute(
-        'SELECT id, email, password_hash, name, is_super_admin, is_active FROM admin_users WHERE email = ? AND is_active = true',
+      // Buscar usuario en la tabla users
+      const [users] = await pool.execute(
+        'SELECT id, email, password, firstName, lastName, role, isActive FROM users WHERE email = ? AND isActive = true',
         [email]
       );
 
-      if (adminUsers.length > 0) {
-        const user = adminUsers[0];
-        // Para admin, verificar credenciales hardcodeadas por ahora
-        if (email === 'admin@cafecolombia.com' && password === 'admin123') {
-          await connection.end();
-          return res.json({
-            message: 'Login exitoso',
-            user: {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              role: 'admin',
-              is_super_admin: user.is_super_admin
-            },
-            token: 'admin-token-' + Date.now()
-          });
-        }
+      if (users.length === 0) {
+        const fs = require('fs');
+        try {
+          fs.appendFileSync('backend-errors.log', new Date().toISOString() + ` LOGIN FAIL: User not found for email ${email}\n`);
+        } catch (e) { }
+        return res.status(401).json({
+          error: 'Credenciales inválidas'
+        });
       }
 
-      // Buscar en coffee_growers con password
-      const [coffeeGrowers] = await connection.execute(
-        'SELECT cg.id, cg.email, cg.password_hash, cg.full_name, f.id as farm_id, f.name as farm_name FROM coffee_growers cg LEFT JOIN farms f ON cg.id = f.coffee_grower_id WHERE cg.email = ? AND cg.status = "active"',
-        [email]
-      );
+      const user = users[0];
 
-      if (coffeeGrowers.length > 0) {
-        const grower = coffeeGrowers[0];
-        // Para caficultores registrados, verificar password simple por ahora
-        if (password === 'password123' && grower.password_hash === 'simple_hash_password123') {
-          await connection.end();
-          return res.json({
-            message: 'Login exitoso',
-            user: {
-              id: grower.id,
-              email: grower.email,
-              name: grower.full_name,
-              role: 'coffee_grower',
-              farmId: grower.farm_id,
-              farmName: grower.farm_name
-            },
-            token: 'grower-token-' + grower.email
-          });
-        }
+      // Verificar contraseña con bcrypt
+      const isValidPassword = await bcrypt.compare(password, user.password);
+
+      if (!isValidPassword) {
+        const fs = require('fs');
+        try {
+          fs.appendFileSync('backend-errors.log', new Date().toISOString() + ` LOGIN FAIL: Invalid password for ${email}\n`);
+        } catch (e) { }
+        return res.status(401).json({
+          error: 'Credenciales inválidas'
+        });
       }
 
-      await connection.end();
-      return res.status(401).json({
-        error: 'Credenciales inválidas'
+      // Login exitoso
+
+      // Generar token compatible con rutas de caficultor si es necesario
+      let token;
+      if (user.role === 'coffee_grower' || user.role === 'TRABAJADOR') {
+        // Usar formato grower-token para compatibilidad con workers.cjs y dashboard
+        token = 'grower-token-' + user.email;
+      } else {
+        token = 'user-token-' + user.id + '-' + Date.now();
+      }
+
+      return res.json({
+        success: true,
+        message: 'Login exitoso',
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: `${user.firstName} ${user.lastName}`,
+            role: user.role,
+            firstName: user.firstName,
+            lastName: user.lastName
+          },
+          token: token
+        }
       });
 
     } catch (dbError) {
-      await connection.end();
+      console.error('Database error during login:', dbError);
       throw dbError;
     }
 
   } catch (error) {
-    console.error('Error en login:', error);
+    console.error('Login error:', error);
+    const fs = require('fs');
+    try {
+      fs.appendFileSync('backend-errors.log', new Date().toISOString() + ' LOGIN ERROR: ' + error.message + '\n');
+    } catch (e) { }
     res.status(500).json({
-      error: 'Error interno del servidor'
+      error: 'Error en el servidor durante el inicio de sesión'
     });
   }
 });
@@ -276,19 +281,16 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/admin/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
       return res.status(400).json({
         error: 'Email y contraseña son requeridos'
       });
     }
 
-    // Conectar a la base de datos
-    const connection = await mysql.createConnection(dbConfig);
-    
     try {
       // Buscar en admin_users
-      const [adminUsers] = await connection.execute(
+      const [adminUsers] = await pool.execute(
         'SELECT id, email, password_hash, name, is_super_admin, is_active FROM admin_users WHERE email = ? AND is_active = true',
         [email]
       );
@@ -297,7 +299,6 @@ app.post('/api/auth/admin/login', async (req, res) => {
         const user = adminUsers[0];
         // Para admin, verificar credenciales hardcodeadas por ahora
         if (email === 'admin@cafecolombiaapp.com' && password === 'admin123') {
-          await connection.end();
           return res.json({
             message: 'Login exitoso',
             user: {
@@ -311,13 +312,11 @@ app.post('/api/auth/admin/login', async (req, res) => {
         }
       }
 
-      await connection.end();
       return res.status(401).json({
         error: 'Credenciales inválidas'
       });
 
     } catch (dbError) {
-      await connection.end();
       throw dbError;
     }
 
@@ -330,20 +329,21 @@ app.post('/api/auth/admin/login', async (req, res) => {
 });
 
 // Ruta de registro para caficultores
+// Ruta de registro para caficultores
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { 
-      name, 
-      email, 
-      password, 
-      farmName, 
-      location, 
-      farmSize, 
-      altitude, 
-      coffeeVariety, 
-      phone 
+    const {
+      name,
+      email,
+      password,
+      farmName,
+      location,
+      farmSize,
+      altitude,
+      coffeeVariety,
+      phone
     } = req.body;
-    
+
     // Validaciones básicas
     if (!name || !email || !password || !farmName) {
       return res.status(400).json({
@@ -366,13 +366,10 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
-    // Conectar a la base de datos
-    const connection = await mysql.createConnection(dbConfig);
-    
     try {
       // Verificar si el email ya existe
-      const [existingUsers] = await connection.execute(
-        'SELECT id FROM coffee_growers WHERE email = ?',
+      const [existingUsers] = await pool.execute(
+        'SELECT id FROM users WHERE email = ?',
         [email]
       );
 
@@ -382,61 +379,38 @@ app.post('/api/auth/register', async (req, res) => {
         });
       }
 
-      // Obtener un admin_user válido para la clave foránea
-      const [adminUsers] = await connection.execute(
-        'SELECT id FROM admin_users LIMIT 1'
-      );
-      
-      const adminUserId = adminUsers.length > 0 ? adminUsers[0].id : null;
-      
-      if (!adminUserId) {
-        return res.status(500).json({
-          error: 'Error de configuración del sistema'
-        });
-      }
+      // Hash password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
 
-      // Insertar nuevo caficultor
-      const [result] = await connection.execute(
-        `INSERT INTO coffee_growers 
-         (identification_number, identification_type, full_name, email, phone, department, municipality, total_farm_area, coffee_area, preferred_varieties, status, created_by) 
-         VALUES (?, 'cedula', ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)`,
-        [
-          email.split('@')[0], // Usar parte del email como identificación temporal
-          name, 
-          email, 
-          phone || null, 
-          location ? location.split(',')[0] : 'No especificado',
-          location ? location.split(',')[1] || 'No especificado' : 'No especificado',
-          farmSize || 1.0, // Valor por defecto de 1 hectárea si no se especifica
-          farmSize || 1.0, // Valor por defecto de 1 hectárea si no se especifica
-          coffeeVariety || null,
-          adminUserId
-        ]
+      const userId = uuidv4();
+      const firstName = name.split(' ')[0];
+      const lastName = name.split(' ').slice(1).join(' ') || '';
+
+      // Insertar nuevo usuario (caficultor)
+      await pool.execute(
+        `INSERT INTO users (id, email, password, firstName, lastName, role, isActive, createdAt, updatedAt) 
+         VALUES (?, ?, ?, ?, ?, 'coffee_grower', true, NOW(), NOW())`,
+        [userId, email, hashedPassword, firstName, lastName]
       );
 
-      const userId = result.insertId;
-
-      // Crear finca asociada si se proporcionaron datos
-      if (farmSize || altitude || location) {
-        await connection.execute(
+      // Crear finca asociada
+      if (farmName) {
+        const farmId = uuidv4();
+        await pool.execute(
           `INSERT INTO farms 
-           (coffee_grower_id, name, address, department, municipality, total_area, coffee_area, altitude, irrigation_type, processing_method, certification_status, created_by) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'secano', 'lavado', 'no_certificada', ?)`,
+           (id, ownerId, name, location, area, altitude, isActive, createdAt, updatedAt) 
+           VALUES (?, ?, ?, ?, ?, ?, true, NOW(), NOW())`,
           [
-            userId, 
-            farmName, 
-            location || 'Dirección no especificada',
-            location ? location.split(',')[0] : 'No especificado',
-            location ? location.split(',')[1] || 'No especificado' : 'No especificado',
-            farmSize || 1.0, // Valor por defecto de 1 hectárea si no se especifica
-            farmSize || 1.0, // Valor por defecto de 1 hectárea si no se especifica
-            altitude || null,
-            adminUserId
+            farmId,
+            userId,
+            farmName,
+            location || 'No especificado',
+            farmSize || 0,
+            altitude || 0
           ]
         );
       }
-
-      await connection.end();
 
       res.status(201).json({
         success: true,
@@ -445,17 +419,11 @@ app.post('/api/auth/register', async (req, res) => {
           id: userId,
           name,
           email,
-          farmName,
-          location,
-          farmSize,
-          altitude,
-          coffeeVariety,
-          phone
+          farmName
         }
       });
 
     } catch (dbError) {
-      await connection.end();
       throw dbError;
     }
 
@@ -464,72 +432,6 @@ app.post('/api/auth/register', async (req, res) => {
     res.status(500).json({
       error: 'Error interno del servidor',
       message: error.message
-    });
-  }
-});
-
-// Ruta para obtener información del usuario
-app.get('/api/admin/me', (req, res) => {
-  // Simulación de usuario autenticado
-  res.json({
-    id: 'admin-001',
-    email: 'admin@cafecolombia.com',
-    name: 'Administrador Principal',
-    is_super_admin: true,
-    is_active: true
-  });
-});
-
-// Ruta para obtener estadísticas del dashboard
-app.get('/api/admin/dashboard/stats', async (req, res) => {
-  try {
-    // Datos de ejemplo para evitar límites de conexión de BD
-    res.json({
-      users: 42,
-      admins: 3,
-      configurations: 15,
-      lastUpdate: new Date().toISOString()
-    });
-
-  } catch (error) {
-    console.error('Error obteniendo estadísticas:', error);
-    res.status(500).json({
-      error: 'Error obteniendo estadísticas'
-    });
-  }
-});
-
-// Ruta para obtener datos de gráficos del dashboard
-app.get('/admin/dashboard/charts', async (req, res) => {
-  try {
-    const period = req.query.period || '30d';
-    
-    // Datos de ejemplo para gráficos (sin conexión a BD para evitar límites)
-    const chartData = {
-      userGrowth: [
-        { date: '2024-10-01', users: 10 },
-        { date: '2024-10-15', users: 25 },
-        { date: '2024-11-01', users: 45 }
-      ],
-      subscriptionDistribution: [
-        { name: 'Básico', value: 30 },
-        { name: 'Premium', value: 45 },
-        { name: 'Enterprise', value: 25 }
-      ],
-      revenueData: [
-        { month: 'Oct', revenue: 1200 },
-        { month: 'Nov', revenue: 1800 }
-      ],
-      period: period,
-      lastUpdate: new Date().toISOString()
-    };
-    
-    res.json(chartData);
-
-  } catch (error) {
-    console.error('Error obteniendo datos de gráficos:', error);
-    res.status(500).json({
-      error: 'Error obteniendo datos de gráficos'
     });
   }
 });
@@ -543,307 +445,16 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Middleware simple de autenticación
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+const { authenticateToken } = require('./middleware/auth.cjs');
 
-  if (!token) {
-    return res.status(401).json({ error: 'Token de acceso requerido' });
-  }
-
-  // Verificación simple del token (en producción usar JWT)
-  if (token.startsWith('admin-token-') || token.startsWith('grower-token-')) {
-    req.user = {
-      token: token,
-      role: token.startsWith('admin-token-') ? 'admin' : 'coffee_grower'
-    };
-    next();
-  } else {
-    return res.status(403).json({ error: 'Token inválido' });
-  }
-}
-
-// Ruta del dashboard para caficultores
-app.get('/api/dashboard', authenticateToken, async (req, res) => {
-  try {
-    const { token, role } = req.user;
-    console.log('Dashboard request - Token:', token, 'Role:', role);
-    
-    if (role === 'admin') {
-      // Dashboard para administrador - datos generales
-      const connection = await mysql.createConnection(dbConfig);
-      
-      const [coffeeGrowersCount] = await connection.execute('SELECT COUNT(*) as count FROM coffee_growers');
-      const [farmsCount] = await connection.execute('SELECT COUNT(*) as count FROM farms');
-      const [totalArea] = await connection.execute('SELECT SUM(total_area) as total FROM farms WHERE total_area IS NOT NULL');
-      
-      await connection.end();
-      
-      const adminDashboard = {
-        user: {
-          name: 'Administrador',
-          email: 'admin@cafecolombia.com',
-          role: 'admin'
-        },
-        stats: {
-          totalGrowers: coffeeGrowersCount[0].count,
-          totalFarms: farmsCount[0].count,
-          totalArea: totalArea[0].total || 0
-        },
-        systemInfo: {
-          lastUpdate: new Date().toISOString(),
-          status: 'active'
-        }
-      };
-      
-      return res.json({
-        success: true,
-        data: adminDashboard
-      });
-    }
-    
-    // Dashboard para caficultor - datos específicos de su finca
-    const connection = await mysql.createConnection(dbConfig);
-    
-    // Extraer email del token (formato: grower-token-email)
-    const email = token.replace('grower-token-', '');
-    
-    // Obtener datos del caficultor y su finca
-    const [growerData] = await connection.execute(`
-      SELECT 
-        cg.id, cg.full_name, cg.email,
-        f.id as farm_id, f.name as farm_name, f.total_area, f.coffee_area, 
-        f.department, f.municipality, f.altitude
-      FROM coffee_growers cg
-      LEFT JOIN farms f ON cg.id = f.coffee_grower_id
-      WHERE cg.email = ?
-    `, [email]);
-    
-    await connection.end();
-    
-    if (growerData.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Caficultor no encontrado'
-      });
-    }
-    
-    const grower = growerData[0];
-    
-    const dashboardData = {
-      user: {
-        name: grower.full_name,
-        email: grower.email,
-        farmName: grower.farm_name || 'Sin finca asignada'
-      },
-      farm: grower.farm_id ? {
-        id: grower.farm_id,
-        totalArea: grower.total_area,
-        coffeeArea: grower.coffee_area,
-        location: `${grower.department}, ${grower.municipality}`,
-        altitude: grower.altitude
-      } : null,
-      production: {
-        currentSeason: 2800 + Math.floor(Math.random() * 1000),
-        lastSeason: 2650 + Math.floor(Math.random() * 800),
-        trend: Math.random() > 0.5 ? 'up' : 'down'
-      },
-      weather: {
-        temperature: 22 + Math.random() * 6,
-        humidity: 70 + Math.random() * 20,
-        rainfall: 80 + Math.random() * 80
-      },
-      alerts: [
-        {
-          id: '1',
-          type: 'warning',
-          message: `Riesgo de roya detectado en ${grower.farm_name || 'su finca'}`,
-          date: new Date().toISOString().split('T')[0]
-        },
-        {
-          id: '2',
-          type: 'info',
-          message: 'Próxima fertilización programada',
-          date: new Date().toISOString().split('T')[0]
-        }
-      ],
-      tasks: [
-        {
-          id: '1',
-          title: 'Aplicar fungicida preventivo',
-          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          priority: 'high',
-          completed: false
-        },
-        {
-          id: '2',
-          title: 'Revisar sistema de riego',
-          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          priority: 'medium',
-          completed: false
-        }
-      ]
-    };
-
-    res.json({
-      success: true,
-      data: dashboardData
-    });
-
-  } catch (error) {
-    console.error('Error al obtener datos del dashboard:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error interno del servidor'
-    });
-  }
-});
-
-// Rutas de autenticación de administrador
-app.post('/api/admin/auth/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Usuario y contraseña son requeridos'
-      });
-    }
-
-    const connection = await mysql.createConnection(dbConfig);
-    
-    // Buscar administrador por email
-    const [adminRows] = await connection.execute(
-      'SELECT * FROM admin_users WHERE email = ? AND is_active = true',
-      [username]
-    );
-
-    if (!adminRows || adminRows.length === 0) {
-      await connection.end();
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Credenciales inválidas' 
-      });
-    }
-
-    const admin = adminRows[0];
-
-    // Verificar si la cuenta está bloqueada
-    if (admin.locked_until && new Date() < new Date(admin.locked_until)) {
-      await connection.end();
-      return res.status(423).json({ 
-        success: false, 
-        message: `Cuenta bloqueada hasta ${new Date(admin.locked_until).toLocaleString()}` 
-      });
-    }
-
-    // Verificar contraseña (comparación simple por ahora)
-    const bcrypt = require('bcryptjs');
-    const isValidPassword = await bcrypt.compare(password, admin.password_hash);
-    
-    if (!isValidPassword) {
-      // Incrementar intentos fallidos
-      await connection.execute(
-        'UPDATE admin_users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = ?',
-        [admin.id]
-      );
-      await connection.end();
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Credenciales inválidas' 
-      });
-    }
-
-    // Resetear intentos fallidos y actualizar último login
-    await connection.execute(
-      'UPDATE admin_users SET failed_login_attempts = 0, locked_until = NULL, last_login_at = NOW() WHERE id = ?',
-      [admin.id]
-    );
-
-    // Generar token JWT
-    const jwt = require('jsonwebtoken');
-    
-    // Generar permisos usando la misma lógica que en adminAuth.ts
-    const allPermissions = [
-      'dashboard:view', 'dashboard:analytics', 
-      'users:view', 'users:create', 'users:edit', 'users:delete', 'users:export',
-      'growers:view', 'growers:create', 'growers:edit', 'growers:delete', 'growers:export',
-      'farms:view', 'farms:create', 'farms:edit', 'farms:delete', 'farms:export',
-      'plans:view', 'plans:create', 'plans:edit', 'plans:delete',
-      'subscriptions:view', 'subscriptions:create', 'subscriptions:edit', 'subscriptions:cancel', 'subscriptions:export',
-      'payments:view', 'payments:refund', 'payments:export',
-      'reports:view', 'reports:export', 'reports:analytics',
-      'audit:view', 'audit:export',
-      'security:view', 'security:manage', 'security:roles',
-      'settings:view', 'settings:edit', 'settings:system'
-    ];
-    
-    let permissions;
-    if (admin.is_super_admin) {
-      permissions = ['*', ...allPermissions];
-    } else {
-      permissions = [
-        'dashboard:view', 'dashboard:analytics',
-        'users:view', 'users:create', 'users:edit', 'users:export',
-        'growers:view', 'growers:create', 'growers:edit', 'growers:export',
-        'farms:view', 'farms:create', 'farms:edit', 'farms:export',
-        'plans:view', 'plans:create', 'plans:edit',
-        'subscriptions:view', 'subscriptions:create', 'subscriptions:edit', 'subscriptions:export',
-        'payments:view', 'payments:export',
-        'reports:view', 'reports:export',
-        'settings:view'
-      ];
-    }
-    
-    const token = jwt.sign(
-      { 
-        id: admin.id, 
-        email: admin.email, 
-        permissions: permissions
-      },
-      process.env.ADMIN_JWT_SECRET || 'admin-secret-key',
-      { expiresIn: '24h' }
-    );
-
-    // Crear sesión
-    const sessionId = require('uuid').v4();
-    const tokenHash = await bcrypt.hash(token, 10);
-    const ipAddress = req.ip || req.connection?.remoteAddress || 'unknown';
-    const userAgent = req.get('User-Agent') || 'unknown';
-    
-    await connection.execute(
-      `INSERT INTO admin_sessions (id, admin_user_id, token_hash, expires_at, ip_address, user_agent) 
-       VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR), ?, ?)`,
-      [sessionId, admin.id, tokenHash, ipAddress, userAgent]
-    );
-
-    await connection.end();
-
-    // Preparar respuesta sin datos sensibles
-    const { password_hash, two_factor_secret, ...safeAdmin } = admin;
-
-    res.json({
-      success: true,
-      token,
-      admin: safeAdmin
-    });
-
-  } catch (error) {
-    console.error('Error en login de administrador:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor'
-    });
-  }
-});
+// Ruta del dashboard delegada al router externo
+app.use('/api/dashboard', require('./routes/dashboard.cjs'));
 
 // Ruta para obtener información del administrador autenticado
 app.get('/api/admin/auth/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
@@ -853,19 +464,18 @@ app.get('/api/admin/auth/me', async (req, res) => {
 
     const token = authHeader.substring(7);
     const jwt = require('jsonwebtoken');
-    
+
+    // Verificar token JWT
     // Verificar token JWT
     const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'admin-secret-key');
 
-    const connection = await mysql.createConnection(dbConfig);
-    
     // Buscar sesión activa y admin
-    const [sessionRows] = await connection.execute(`
+    const [sessionRows] = await pool.execute(`
       SELECT s.*, a.* FROM admin_sessions s
       JOIN admin_users a ON s.admin_user_id = a.id
       WHERE s.expires_at > NOW() AND a.is_active = true
     `);
-    
+
     // Verificar el token hash
     let validSession = null;
     for (const session of sessionRows) {
@@ -876,7 +486,6 @@ app.get('/api/admin/auth/me', async (req, res) => {
     }
 
     if (!validSession) {
-      await connection.end();
       return res.status(401).json({
         success: false,
         message: 'Sesión inválida o expirada'
@@ -884,7 +493,6 @@ app.get('/api/admin/auth/me', async (req, res) => {
     }
 
     const admin = validSession;
-    await connection.end();
 
     // Preparar respuesta sin datos sensibles
     const { password_hash, two_factor_secret, ...safeAdmin } = admin;
@@ -907,11 +515,40 @@ app.get('/api/admin/auth/me', async (req, res) => {
 const alertsRoutes = require('./routes/alerts.cjs');
 const aiRoutes = require('./routes/ai.cjs');
 const adminRoutes = require('./routes/admin.cjs');
+const adminDashboardRoutes = require('./routes/admin/dashboard.cjs');
+const adminReportsRoutes = require('./routes/admin/reports.cjs');
+const adminSecurityRoutes = require('./routes/admin/security.cjs');
+const adminUsersRoutes = require('./routes/admin/users.cjs');
+const adminCoffeeGrowersRoutes = require('./routes/admin/coffee-growers.cjs');
+const adminFarmsRoutes = require('./routes/admin/farms.cjs');
+const adminSubscriptionsRoutes = require('./routes/admin/subscriptions.cjs');
+const adminSubscriptionPlansRoutes = require('./routes/admin/subscription-plans.cjs');
+const adminPaymentsRoutes = require('./routes/admin/payments.cjs');
+const adminAnalyticsRoutes = require('./routes/admin/analytics.cjs');
+const adminAuditRoutes = require('./routes/admin/audit.cjs');
+const adminProfileRoutes = require('./routes/admin/profile.cjs');
+const workersRoutes = require('./routes/workers.cjs');
+const dashboardRoutes = require('./routes/dashboard.cjs');
 
 // Configurar rutas de alertas, AI y admin
 app.use('/api/alerts', alertsRoutes);
 app.use('/api/ai', aiRoutes);
+// Montar dashboard router ANTES de admin router para que tenga prioridad
+app.use('/api/admin/dashboard', adminDashboardRoutes);
+app.use('/api/admin/reports', adminReportsRoutes);
+app.use('/api/admin/security', adminSecurityRoutes);
+app.use('/api/admin/users', adminUsersRoutes);
+app.use('/api/admin/coffee-growers', adminCoffeeGrowersRoutes);
+app.use('/api/admin/farms', adminFarmsRoutes);
+app.use('/api/admin/subscriptions', adminSubscriptionsRoutes);
+app.use('/api/admin/subscription-plans', adminSubscriptionPlansRoutes);
+app.use('/api/admin/payments', adminPaymentsRoutes);
+app.use('/api/admin/analytics', adminAnalyticsRoutes);
+app.use('/api/admin/audit', adminAuditRoutes);
+app.use('/api/admin/profile', adminProfileRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/workers', authenticateToken, workersRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Servir archivos estáticos del frontend (build de Vite)
 const frontendPath = path.join(__dirname, '..', 'dist');
@@ -926,7 +563,7 @@ app.get('*', (req, res) => {
       path: req.originalUrl
     });
   }
-  
+
   // Para todas las demás rutas, servir el index.html (SPA fallback)
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
@@ -935,11 +572,11 @@ app.get('*', (req, res) => {
 async function startServer() {
   try {
     console.log('🚀 Iniciando servidor Café Colombia...');
-    
+
     // Probar conexión a MySQL
     console.log('🔌 Probando conexión a MySQL...');
     const mysqlConnected = await testMySQLConnection();
-    
+
     if (mysqlConnected) {
       console.log('✅ Conexión a MySQL exitosa');
     } else {
@@ -966,5 +603,3 @@ async function startServer() {
 
 // Iniciar el servidor
 startServer();
-
-module.exports = app;

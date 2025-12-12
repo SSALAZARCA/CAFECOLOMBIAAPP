@@ -1,0 +1,20 @@
+
+--- TABLE: coffee_growers ---
+id (int(11)), identification_number (varchar(50)), identification_type (varchar(20)), full_name (varchar(255)), email (varchar(255)), password_hash (varchar(255)), phone (varchar(50)), department (varchar(100)), municipality (varchar(100)), total_farm_area (decimal(10,2)), coffee_area (decimal(10,2)), preferred_varieties (text), status (varchar(20)), created_by (varchar(255)), created_at (timestamp), updated_at (timestamp)
+Sample Row Keys: id, identification_number, identification_type, full_name, email, password_hash, phone, department, municipality, total_farm_area, coffee_area, preferred_varieties, status, created_by, created_at, updated_at
+
+--- TABLE: farms ---
+id (varchar(191)), name (varchar(191)), location (varchar(191)), area (double), altitude (double), coordinates (varchar(191)), description (varchar(191)), ownerId (varchar(191)), isActive (tinyint(1)), createdAt (datetime(3)), updatedAt (datetime(3))
+(Table is empty)
+
+--- TABLE: lots ---
+id (varchar(191)), name (varchar(191)), farmId (varchar(191)), area (double), variety (varchar(191)), plantingDate (datetime(3)), coordinates (varchar(191)), soilType (varchar(191)), slope (double), isActive (tinyint(1)), createdAt (datetime(3)), updatedAt (datetime(3))
+(Table is empty)
+
+--- TABLE: harvests ---
+id (varchar(191)), lotId (varchar(191)), harvestDate (datetime(3)), quantityKg (double), qualityGrade (varchar(191)), harvestedBy (varchar(191)), notes (varchar(191)), createdAt (datetime(3)), updatedAt (datetime(3))
+(Table is empty)
+
+--- TABLE: agricultural_tasks ---
+id (varchar(191)), name (varchar(191)), type (enum('SIEMBRA','FERTILIZACION','FUMIGACION','PODA','COSECHA','MANTENIMIENTO','CONTROL_PLAGAS','OTRO')), description (varchar(191)), lotId (varchar(191)), assignedTo (varchar(191)), scheduledDate (datetime(3)), completedDate (datetime(3)), status (enum('PENDIENTE','EN_PROGRESO','COMPLETADA','CANCELADA')), notes (varchar(191)), createdAt (datetime(3)), updatedAt (datetime(3))
+(Table is empty)

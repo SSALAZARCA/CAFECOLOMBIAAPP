@@ -3,17 +3,18 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  Leaf, 
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Leaf,
   AlertCircle,
   CheckCircle,
   Coffee
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import apiClient, { API_ENDPOINTS } from '../services/apiClient';
 
 // Esquema de validación
 const loginSchema = z.object({
@@ -48,7 +49,7 @@ const Login: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setError('');
-    
+
     // Modo demo: bypass backend
     const matchDemoCredentials = (email: string, password: string) => {
       if (email === 'caficultor@test.com' && password === 'test123') {
@@ -97,65 +98,113 @@ const Login: React.FC = () => {
         if (demo.user.role === 'coffee_grower') {
           navigate('/dashboard');
         } else if (demo.user.role === 'admin' || demo.user.role === 'super_admin') {
-          navigate('/admin/dashboard');
+          import('../stores/adminStore').then(({ useAdminStore }) => {
+            useAdminStore.setState({
+              isAuthenticated: true,
+              session: {
+                token: demo.token,
+                refresh_token: demo.token,
+                expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+              },
+              currentAdmin: {
+                id: demo.user.id,
+                email: demo.user.email,
+                name: demo.user.nombre,
+                role: demo.user.role,
+                is_active: true,
+                permissions: ['*']
+              },
+              loading: false
+            });
+            navigate('/admin/dashboard');
+          });
         } else {
           navigate('/');
         }
         return;
       }
 
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
-      const response = await fetch(`${apiUrl}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password
-        }),
+      // Use standardized apiClient which handles the base URL (relative in prod, absolute in dev)
+      console.log('🚀 Iniciando login via apiClient...');
+
+      const res = await apiClient.post('/auth/login', {
+        email: data.email,
+        password: data.password
       });
 
-      const result = await response.json();
+      console.log('📦 Respuesta Login Raw:', res);
 
-      if (response.ok) {
-        authLogin(result.token, result.user);
+      // apiClient returns { success, data, message } directly
+      // We need to adapt it if previously we were expecting raw fetch response
+      const json = res;
+
+      if (json.success) {
+        // Estructura backend confirmada: { success: true, data: { user, token } }
+        const responseData = json.data || {};
+        const { user, token } = responseData;
+
+        // Validación estricta
+        if (!user || !token) {
+          const keysEncontradas = Object.keys(responseData).join(', ');
+          throw new Error(`Respuesta incompleta. Keys encontradas en data: [${keysEncontradas}]`);
+        }
+
+        console.log('✅ Usuario extraído:', user);
+        authLogin(token, user);
+
         if (data.rememberMe) {
           localStorage.setItem('rememberUser', data.email);
         } else {
           localStorage.removeItem('rememberUser');
         }
 
-        if (result.user.role === 'coffee_grower') {
+        // Validación de rol directa
+        const role = user.role || user.tipo_usuario;
+        console.log('🔑 Rol detectado:', role);
+
+        if (role === 'coffee_grower' || role === 'CAFICULTOR') {
           navigate('/dashboard');
-        } else if (result.user.role === 'admin' || result.user.role === 'super_admin') {
-          navigate('/admin/dashboard');
+        } else if (role === 'admin' || role === 'super_admin' || role === 'ADMINISTRADOR') {
+          import('../stores/adminStore').then(({ useAdminStore }) => {
+            useAdminStore.setState({
+              isAuthenticated: true,
+              session: {
+                token: token,
+                refresh_token: token,
+                expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+              },
+              currentAdmin: {
+                id: user.id || 'admin-fallback',
+                email: user.email || data.email,
+                name: user.name || 'Admin',
+                role: role,
+                is_active: true,
+                permissions: user.permissions || ['*']
+              },
+              loading: false
+            });
+            navigate('/admin/dashboard');
+          });
         } else {
-          navigate('/');
+          console.warn('⚠️ Rol desconocido, redirigiendo a dashboard por defecto');
+          navigate('/dashboard');
         }
+
       } else {
-        setError(result.message || 'Error en el inicio de sesión');
+        const errorMsg = json.message || json.error || 'Login fallido';
+        setError(errorMsg);
       }
     } catch (error) {
       console.error('Error en login:', error);
-      // Fallback a demo si backend no responde
+      // Fallback a demo si falla conexión crítica
       const demo = matchDemoCredentials(data.email, data.password);
       if (demo) {
+        console.warn('⚠️ Backend no responde, usando modo demo fallback');
         authLogin(demo.token, demo.user);
-        if (data.rememberMe) {
-          localStorage.setItem('rememberUser', data.email);
-        } else {
-          localStorage.removeItem('rememberUser');
-        }
-        if (demo.user.role === 'coffee_grower') {
-          navigate('/dashboard');
-        } else if (demo.user.role === 'admin' || demo.user.role === 'super_admin') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/');
-        }
+        if (demo.user.role === 'coffee_grower') navigate('/dashboard');
+        else navigate('/admin/dashboard');
       } else {
-        setError('Error de conexión. Intenta nuevamente.');
+        setError(`Error de conexión: ${error instanceof Error ? error.message : String(error)}`);
       }
     } finally {
       setIsLoading(false);
@@ -195,31 +244,28 @@ const Login: React.FC = () => {
         <div className="bg-white py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
           {/* Mensaje de estado */}
           {stateMessage && (
-            <div className={`mb-4 p-4 rounded-md ${
-              messageType === 'success' 
-                ? 'bg-green-50 border border-green-200' 
-                : messageType === 'error'
+            <div className={`mb-4 p-4 rounded-md ${messageType === 'success'
+              ? 'bg-green-50 border border-green-200'
+              : messageType === 'error'
                 ? 'bg-red-50 border border-red-200'
                 : 'bg-blue-50 border border-blue-200'
-            }`}>
+              }`}>
               <div className="flex">
                 <div className="flex-shrink-0">
                   {messageType === 'success' ? (
                     <CheckCircle className="h-5 w-5 text-green-400" />
                   ) : (
-                    <AlertCircle className={`h-5 w-5 ${
-                      messageType === 'error' ? 'text-red-400' : 'text-blue-400'
-                    }`} />
+                    <AlertCircle className={`h-5 w-5 ${messageType === 'error' ? 'text-red-400' : 'text-blue-400'
+                      }`} />
                   )}
                 </div>
                 <div className="ml-3">
-                  <p className={`text-sm ${
-                    messageType === 'success' 
-                      ? 'text-green-800' 
-                      : messageType === 'error'
+                  <p className={`text-sm ${messageType === 'success'
+                    ? 'text-green-800'
+                    : messageType === 'error'
                       ? 'text-red-800'
                       : 'text-blue-800'
-                  }`}>
+                    }`}>
                     {stateMessage}
                   </p>
                 </div>
@@ -252,9 +298,8 @@ const Login: React.FC = () => {
                   {...register('email')}
                   type="email"
                   autoComplete="email"
-                  className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${
-                    errors.email ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm`}
+                  className={`pl-10 appearance-none relative block w-full px-3 py-2 border ${errors.email ? 'border-red-300' : 'border-gray-300'
+                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm`}
                   placeholder="tu@email.com"
                 />
               </div>
@@ -273,9 +318,8 @@ const Login: React.FC = () => {
                   {...register('password')}
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  className={`pl-10 pr-10 appearance-none relative block w-full px-3 py-2 border ${
-                    errors.password ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm`}
+                  className={`pl-10 pr-10 appearance-none relative block w-full px-3 py-2 border ${errors.password ? 'border-red-300' : 'border-gray-300'
+                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm`}
                   placeholder="Tu contraseña"
                 />
                 <button
@@ -355,18 +399,6 @@ const Login: React.FC = () => {
               </div>
             </div>
           </form>
-
-          {/* Enlaces adicionales */}
-          <div className="mt-6 text-center">
-            <div className="text-sm text-gray-600">
-              <Link
-                to="/admin/login"
-                className="font-medium text-gray-500 hover:text-gray-400"
-              >
-                ¿Eres administrador? Ingresa aquí
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
 

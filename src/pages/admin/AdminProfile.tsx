@@ -74,7 +74,7 @@ const AdminProfile: React.FC = () => {
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const data = await adminHttpClient.get('/admin/profile');
+      const data = await adminHttpClient.get('/api/admin/profile');
       setProfile(data);
       setFormData(data);
     } catch (error) {
@@ -88,7 +88,7 @@ const AdminProfile: React.FC = () => {
   const handleSaveProfile = async () => {
     try {
       setSaving(true);
-      const updatedProfile = await adminHttpClient.put('/admin/profile', formData);
+      const updatedProfile = await adminHttpClient.put('/api/admin/profile', formData);
       setProfile(updatedProfile);
       setEditMode(false);
       toast.success('Perfil actualizado correctamente');
@@ -113,7 +113,7 @@ const AdminProfile: React.FC = () => {
 
     try {
       setSaving(true);
-      await adminHttpClient.put('/admin/profile/password', {
+      await adminHttpClient.put('/api/admin/profile/password', {
         currentPassword: securityData.currentPassword,
         newPassword: securityData.newPassword
       });
@@ -136,7 +136,7 @@ const AdminProfile: React.FC = () => {
   const handleToggle2FA = async () => {
     try {
       const newStatus = !profile?.twoFactorEnabled;
-      await adminHttpClient.put('/admin/profile/2fa', { enabled: newStatus });
+      await adminHttpClient.put('/api/admin/profile/2fa', { enabled: newStatus });
       
       if (profile) {
         setProfile({ ...profile, twoFactorEnabled: newStatus });
@@ -156,7 +156,7 @@ const AdminProfile: React.FC = () => {
 
   const handleNotificationChange = async (type: string, value: boolean) => {
     try {
-      await adminHttpClient.put('/admin/profile/notifications', {
+      await adminHttpClient.put('/api/admin/profile/notifications', {
         [type]: value
       });
       

@@ -36,11 +36,12 @@ export const API_ENDPOINTS = {
   // Authentication
   auth: {
     login: '/api/auth/login',
+    register: '/api/auth/register',
     logout: '/api/auth/logout',
     refresh: '/api/auth/refresh',
     profile: '/api/auth/profile'
   },
-  
+
   // Farm management
   farms: {
     list: '/api/farms',
@@ -49,7 +50,7 @@ export const API_ENDPOINTS = {
     update: (id: string) => `/api/farms/${id}`,
     delete: (id: string) => `/api/farms/${id}`
   },
-  
+
   // Lot management
   lots: {
     list: (farmId: string) => `/api/farms/${farmId}/lots`,
@@ -58,7 +59,7 @@ export const API_ENDPOINTS = {
     update: (farmId: string, lotId: string) => `/api/farms/${farmId}/lots/${lotId}`,
     delete: (farmId: string, lotId: string) => `/api/farms/${farmId}/lots/${lotId}`
   },
-  
+
   // AI Services
   ai: {
     // Phytosanitary analysis
@@ -67,34 +68,34 @@ export const API_ENDPOINTS = {
       history: '/api/ai/phytosanitary/history',
       result: (id: string) => `/api/ai/phytosanitary/result/${id}`
     },
-    
+
     // Predictive analysis
     predictive: {
       forecast: '/api/ai/predictive/forecast',
       alerts: '/api/ai/predictive/alerts',
       history: '/api/ai/predictive/history'
     },
-    
+
     // RAG Assistant
     rag: {
       query: '/api/ai/rag/query',
       context: '/api/ai/rag/context',
       feedback: '/api/ai/rag/feedback'
     },
-    
+
     // Optimization
     optimization: {
       analyze: '/api/ai/optimization/analyze',
       recommendations: '/api/ai/optimization/recommendations',
       benchmarks: '/api/ai/optimization/benchmarks'
     },
-    
+
     // Common AI endpoints
     status: '/api/ai/status',
     metrics: '/api/ai/metrics',
     models: '/api/ai/models'
   },
-  
+
   // File management
   files: {
     upload: '/api/files/upload',
@@ -102,7 +103,7 @@ export const API_ENDPOINTS = {
     delete: (id: string) => `/api/files/${id}`,
     metadata: (id: string) => `/api/files/${id}/metadata`
   },
-  
+
   // Sync endpoints
   sync: {
     status: '/api/sync/status',
@@ -110,7 +111,7 @@ export const API_ENDPOINTS = {
     download: '/api/sync/download',
     conflicts: '/api/sync/conflicts'
   },
-  
+
   // Notifications
   notifications: {
     list: '/api/notifications',
@@ -118,7 +119,7 @@ export const API_ENDPOINTS = {
     subscribe: '/api/notifications/subscribe',
     unsubscribe: '/api/notifications/unsubscribe'
   },
-  
+
   // System
   system: {
     health: '/api/health',
@@ -135,7 +136,10 @@ export class ApiClient {
   private retryAttempts: number;
 
   constructor() {
-    this.baseUrl = appConfig.api.baseUrl;
+    // Dynamic base URL based on current host
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    this.baseUrl = isDev ? 'http://127.0.0.1:3001/api' : '/api';
+
     this.timeout = appConfig.api.timeout;
     this.retryAttempts = appConfig.api.retryAttempts;
     this.defaultHeaders = {
@@ -175,7 +179,12 @@ export class ApiClient {
 
     // Evitar proxy Vite en desarrollo, construir URL directo
     const url = `${this.baseUrl.replace(/\/$/, '')}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-    const requestHeaders = { ...this.defaultHeaders, ...headers };
+
+    // Always get fresh token from localStorage
+    const token = localStorage.getItem('token');
+    const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    const requestHeaders = { ...this.defaultHeaders, ...authHeader, ...headers };
 
     // Create abort controller for timeout
     const controller = new AbortController();
@@ -221,7 +230,7 @@ export class ApiClient {
 
         // Parse response
         const data = await response.json();
-        
+
         return {
           success: true,
           data: data.data || data,
@@ -232,7 +241,7 @@ export class ApiClient {
 
       } catch (error) {
         lastError = error as Error;
-        
+
         // Check if this is a connection error
         const isConnectionError = error instanceof Error && (
           error.message.includes('ERR_CONNECTION_REFUSED') ||
@@ -241,10 +250,18 @@ export class ApiClient {
           error.message.includes('fetch') ||
           error.name === 'TypeError'
         );
-        
+
         // In development mode, silently handle backend connection errors
         if (isDevelopment && isConnectionError && isBackendUrl) {
           // Don't log errors to console, just return offline response
+          // FIX: Don't swallow errors, we need to see them to debug!
+          console.error('🔥 Backend connection error details:', {
+            url,
+            error: error.message,
+            stack: error.stack,
+            name: error.name
+          });
+          /*
           clearTimeout(timeoutId);
           return {
             success: false,
@@ -252,13 +269,14 @@ export class ApiClient {
             message: 'Backend service unavailable - running in offline mode',
             timestamp: new Date().toISOString()
           };
+          */
         }
-        
+
         // Don't retry on abort or certain errors
         if (error instanceof Error) {
-          if (error.name === 'AbortError' || 
-              error.message.includes('401') || 
-              error.message.includes('403')) {
+          if (error.name === 'AbortError' ||
+            error.message.includes('401') ||
+            error.message.includes('403')) {
             break;
           }
         }
@@ -279,11 +297,18 @@ export class ApiClient {
     clearTimeout(timeoutId);
 
     // Return error response
-    const errorMessage = isDevelopment && isBackendUrl ? 'offline_mode' : (lastError?.message || 'Unknown error occurred');
+    // Return error response
+    // Only return offline_mode if it was truly a connection error that we couldn't recover from
+    const isNetworkError = lastError?.message?.includes('fetch') || lastError?.message?.includes('Failed to fetch') || lastError?.name === 'TypeError';
+
+    // Si es un error de estado HTTP (401, 404, 500), lastError tendrá el mensaje del servidor
+    // No ocultar esos errores con "offline_mode"
+    const errorMessage = (isDevelopment && isBackendUrl && isNetworkError) ? 'offline_mode' : (lastError?.message || 'Unknown error occurred');
+
     return {
       success: false,
       error: errorMessage,
-      message: isDevelopment && isBackendUrl ? 'Backend service unavailable - running in offline mode' : undefined,
+      message: (isDevelopment && isBackendUrl && isNetworkError) ? 'Backend service unavailable - running in offline mode' : undefined,
       timestamp: new Date().toISOString()
     };
   }

@@ -59,6 +59,7 @@ model Farm {
   // Relaciones
   owner User @relation(fields: [ownerId], references: [id])
   lots  Lot[]
+  workers FarmWorker[]
 
   @@map("farms")
 }
@@ -85,6 +86,7 @@ model Lot {
   pestMonitoring    PestMonitoring[]
   expenses          Expense[]
   harvests          Harvest[]
+  collections       CoffeeCollection[]
   microlots         Microlot[]
 
   @@map("lots")
@@ -149,7 +151,8 @@ model AgriculturalTask {
   type        TaskType
   description String?
   lotId       String
-  assignedTo  String
+  assignedTo  String?
+  assignedWorkerId String?
   scheduledDate DateTime
   completedDate DateTime?
   status      TaskStatus @default(PENDIENTE)
@@ -159,7 +162,8 @@ model AgriculturalTask {
 
   // Relaciones
   lot        Lot          @relation(fields: [lotId], references: [id])
-  assignedUser User       @relation(fields: [assignedTo], references: [id])
+  assignedUser User?      @relation(fields: [assignedTo], references: [id])
+  assignedWorker FarmWorker? @relation(fields: [assignedWorkerId], references: [id])
   inputUsage InputUsage[]
 
   @@map("agricultural_tasks")
@@ -486,4 +490,42 @@ enum DocumentType {
   FACTURA_EXPORTACION
   MANIFIESTO_CARGA
   CERTIFICADO_FITOSANITARIO
+}
+
+// Modelo de Trabajadores de la Finca
+model FarmWorker {
+  id          String   @id @default(cuid())
+  farmId      String
+  name        String
+  role        String   @default("RECOLECTOR") // RECOLECTOR, ENCARGADO, GENERAL
+  phone       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  farm        Farm               @relation(fields: [farmId], references: [id])
+  collections CoffeeCollection[]
+  assignedTasks AgriculturalTask[]
+
+  @@map("farm_workers")
+}
+
+// Modelo de Recolección de Café (Diaria/Por trabajador)
+model CoffeeCollection {
+  id             String   @id @default(cuid())
+  workerId       String
+  lotId          String
+  quantityKg     Float
+  collectionDate DateTime
+  method         String   @default("MANUAL") // MANUAL, BASCULA
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relaciones
+  worker      FarmWorker @relation(fields: [workerId], references: [id])
+  lot         Lot        @relation(fields: [lotId], references: [id])
+
+  @@map("coffee_collections")
 }

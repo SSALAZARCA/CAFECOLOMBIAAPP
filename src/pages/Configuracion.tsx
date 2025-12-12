@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import Layout from '@/components/Layout';
+import apiClient from '@/services/apiClient';
 
 interface FarmConfig {
   name: string;
@@ -21,7 +23,7 @@ interface ProfileConfig {
 }
 
 export default function Configuracion() {
-  const { user, isAuthenticated, isLoading, getToken } = useAuth();
+  const { user, isAuthenticated, isLoading, getToken, login } = useAuth();
   const navigate = useNavigate();
 
   const [farm, setFarm] = useState<FarmConfig>({
@@ -59,34 +61,28 @@ export default function Configuracion() {
         // Solo caficultor puede acceder
         const role = (user as any)?.role || (user as any)?.tipo_usuario;
         if (role && role !== 'coffee_grower') {
-          setError('Acceso restringido. Solo para caficultores.');
-          setLoading(false);
-          return;
+          console.warn('Configuración: Role mismatch but staying on page for debug', role);
+          // setError('Acceso restringido. Solo para caficultores.');
+          // setLoading(false);
+          // return;
         }
 
         const token = getToken();
         if (!token) {
-          navigate('/login');
+          console.warn('Configuración: No token found, but suppressing auto-logout for debugging');
+          setError('No valid session token found.');
+          setLoading(false);
           return;
         }
 
         setLoading(true);
         setError(null);
 
-        const res = await fetch('/api/dashboard', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        // Usamos apiClient.get para consistencia y manejo de errores (offline, 401)
+        const data = await apiClient.get('/dashboard');
 
-        if (!res.ok) {
-          // En desarrollo puede fallar el proxy; continuar con valores vacíos
-          throw new Error('No se pudo cargar la información del caficultor');
-        }
-
-        const data = await res.json();
-        // Backend devuelve success/data según server.cjs o routes/dashboard
+        // Backend devuelve { success: true, data: { ... } } o directamente los datos si apiClient los desempaqueta
+        // Asumimos que apiClient devuelve response.data (la estructura JSON)
         const dashboard = data.data || data;
 
         if (dashboard?.farm) {
@@ -104,12 +100,12 @@ export default function Configuracion() {
           });
         }
 
-        if (dashboard?.grower) {
-          const g = dashboard.grower;
+        if (dashboard?.grower || dashboard?.user) {
+          const g = dashboard.grower || dashboard.user;
           setProfile({
-            fullName: g.full_name || '',
+            fullName: g.full_name || g.name || '',
             email: dashboard.email || g.email || '',
-            phone: g.phone || ''
+            phone: g.phone || dashboard.user?.phone || ''
           });
         }
       } catch (err: any) {
@@ -128,12 +124,38 @@ export default function Configuracion() {
     try {
       setSaving(true);
       setSavedMsg(null);
+      setError(null);
 
-      // En esta versión, solo simulamos guardado local.
-      // Integración real: POST/PUT a rutas de farms y coffee_growers.
-      await new Promise((r) => setTimeout(r, 800));
-      setSavedMsg('Configuración guardada localmente (modo demo).');
+      const token = getToken();
+      if (!token) throw new Error('No hay sesión activa');
+
+      const payload = {
+        profile: profile,
+        farm: farm
+      };
+
+      // Usar apiClient para el PUT
+      await apiClient.put('/dashboard', payload);
+
+      setSavedMsg('Configuración actualizada correctamente en la base de datos.');
+
+      // Update local state and Context immediately
+      if (user) {
+        const updatedUser = {
+          ...user,
+          name: profile.fullName,
+          firstName: profile.fullName.split(' ')[0],
+          lastName: profile.fullName.split(' ').slice(1).join(' '),
+          email: profile.email,
+          phone: profile.phone
+          // Preserve other fields like role, id
+        };
+        // Use login to refresh the session token/user data in local storage and context
+        login(token, updatedUser);
+      }
+
     } catch (err: any) {
+      console.error('Error saving settings:', err);
       setError(err.message || 'Error al guardar configuración');
     } finally {
       setSaving(false);
@@ -157,179 +179,186 @@ export default function Configuracion() {
   const soilTypes = ['volcánico', 'arcilloso', 'franco', 'arenoso', 'limoso'];
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6">
-      <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Configuración del Caficultor</h1>
-      <p className="text-gray-600 mt-1">Gestiona tu perfil y los datos de tu finca.</p>
+    <Layout>
+      <div className="max-w-5xl mx-auto p-4 md:p-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Configuración del Caficultor</h1>
+        <p className="text-gray-600 mt-1">Gestiona tu perfil y los datos de tu finca.</p>
 
-      {loading && (
-        <div className="mt-4 text-gray-500">Cargando datos...</div>
-      )}
+        {loading && (
+          <div className="mt-4 text-gray-500">Cargando datos...</div>
+        )}
 
-      {!loading && error && (
-        <div className="mt-4 p-3 rounded bg-red-50 text-red-700 border border-red-200">
-          {error}
-        </div>
-      )}
-
-      {!loading && !error && (
-        <div className="space-y-8 mt-6">
-          {/* Perfil */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-800">Perfil del Usuario</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="block text-sm text-gray-600">Nombre completo</label>
-                <input
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={profile.fullName}
-                  onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
-                  placeholder="Ej: Juan Pérez"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Email</label>
-                <input
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={profile.email}
-                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                  placeholder="tu@email.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Teléfono</label>
-                <input
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={profile.phone}
-                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                  placeholder="+57 300 000 0000"
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Finca */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-800">Configuración de la Finca</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="block text-sm text-gray-600">Nombre de la finca</label>
-                <input
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={farm.name}
-                  onChange={(e) => setFarm({ ...farm, name: e.target.value })}
-                  placeholder="Ej: La Esperanza"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Departamento</label>
-                <input
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={farm.department}
-                  onChange={(e) => setFarm({ ...farm, department: e.target.value })}
-                  placeholder="Ej: Huila"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Municipio</label>
-                <input
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={farm.municipality}
-                  onChange={(e) => setFarm({ ...farm, municipality: e.target.value })}
-                  placeholder="Ej: Pitalito"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Dirección</label>
-                <input
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={farm.address}
-                  onChange={(e) => setFarm({ ...farm, address: e.target.value })}
-                  placeholder="Vereda, referencia"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Tamaño (ha)</label>
-                <input
-                  type="number"
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={farm.sizeHectares}
-                  onChange={(e) => setFarm({ ...farm, sizeHectares: e.target.value === '' ? '' : Number(e.target.value) })}
-                  placeholder="Ej: 5.5"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Altitud (msnm)</label>
-                <input
-                  type="number"
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={farm.altitude}
-                  onChange={(e) => setFarm({ ...farm, altitude: e.target.value === '' ? '' : Number(e.target.value) })}
-                  placeholder="Ej: 1650"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Tipo de suelo</label>
-                <select
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={farm.soilType}
-                  onChange={(e) => setFarm({ ...farm, soilType: e.target.value })}
-                >
-                  {soilTypes.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm text-gray-600">Variedades de café</label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {varieties.map((v) => {
-                  const active = farm.coffeeVarieties.includes(v);
-                  return (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => toggleVariety(v)}
-                      className={`px-3 py-1 rounded border text-sm ${active ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white border-gray-300 text-gray-700'}`}
-                    >
-                      {v}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm text-gray-600">Método de procesamiento</label>
-              <select
-                className="mt-1 w-full md:w-1/2 border rounded px-3 py-2"
-                value={farm.processingMethod}
-                onChange={(e) => setFarm({ ...farm, processingMethod: e.target.value })}
-              >
-                {processingMethods.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
-          </section>
-
-          {/* Guardado */}
-          <div className="flex items-center gap-3 mt-2">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
-            >
-              {saving ? 'Guardando...' : 'Guardar configuración'}
-            </button>
-            {savedMsg && (
-              <span className="text-sm text-green-700">{savedMsg}</span>
-            )}
+        {!loading && error && (
+          <div className="mt-4 p-3 rounded bg-red-50 text-red-700 border border-red-200">
+            {error}
           </div>
-        </div>
-      )}
-    </div>
+        )}
+
+        {!loading && !error && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
+            <div className="p-6 space-y-8">
+
+              {/* Sección Perfil */}
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">Datos Personales</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                      value={profile.fullName}
+                      onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                    <input
+                      type="email"
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 bg-gray-50"
+                      value={profile.email}
+                      disabled
+                    />
+                    <p className="text-xs text-gray-500 mt-1">No se puede cambiar el correo.</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                    <input
+                      type="tel"
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                      value={profile.phone}
+                      onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                      placeholder="Ej: 3001234567"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sección Finca */}
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">Datos de la Finca</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Finca</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                      value={farm.name}
+                      onChange={(e) => setFarm({ ...farm, name: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                      value={farm.department}
+                      onChange={(e) => setFarm({ ...farm, department: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Municipio</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                      value={farm.municipality}
+                      onChange={(e) => setFarm({ ...farm, municipality: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Dirección / Vereda</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                      value={farm.address}
+                      onChange={(e) => setFarm({ ...farm, address: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Área Total (Hectáreas)</label>
+                    <input
+                      type="number"
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                      value={farm.sizeHectares}
+                      onChange={(e) => setFarm({ ...farm, sizeHectares: parseFloat(e.target.value) || '' })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Altitud (msnm)</label>
+                    <input
+                      type="number"
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                      value={farm.altitude}
+                      onChange={(e) => setFarm({ ...farm, altitude: parseFloat(e.target.value) || '' })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Suelo</label>
+                    <select
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                      value={farm.soilType}
+                      onChange={(e) => setFarm({ ...farm, soilType: e.target.value })}
+                    >
+                      {soilTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Método de Beneficio</label>
+                    <select
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                      value={farm.processingMethod}
+                      onChange={(e) => setFarm({ ...farm, processingMethod: e.target.value })}
+                    >
+                      {processingMethods.map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Variedades de Café</label>
+                  <div className="flex flex-wrap gap-2">
+                    {varieties.map(v => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => toggleVariety(v)}
+                        className={`px-3 py-1 rounded-full text-sm border ${farm.coffeeVarieties.includes(v)
+                            ? 'bg-green-100 text-green-800 border-green-200'
+                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                          }`}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="pt-6 border-t flex justify-end">
+                {savedMsg && (
+                  <span className="text-green-600 mr-4 self-center animate-fade-in">{savedMsg}</span>
+                )}
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
+                >
+                  {saving ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+      </div>
+    </Layout>
   );
 }

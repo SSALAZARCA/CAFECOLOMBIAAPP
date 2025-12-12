@@ -1,0 +1,240 @@
+{
+  "users": [
+    {
+      "Field": "id",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "email",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "UNI",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "password",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "firstName",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "lastName",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "role",
+      "Type": "enum('ADMINISTRADOR','TRABAJADOR','CERTIFICADOR','coffee_grower')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "TRABAJADOR",
+      "Extra": ""
+    },
+    {
+      "Field": "isActive",
+      "Type": "tinyint(1)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "1",
+      "Extra": ""
+    },
+    {
+      "Field": "createdAt",
+      "Type": "datetime(3)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "current_timestamp(3)",
+      "Extra": ""
+    },
+    {
+      "Field": "updatedAt",
+      "Type": "datetime(3)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    }
+  ],
+  "farms": [
+    {
+      "Field": "id",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "name",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "location",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "area",
+      "Type": "double",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "altitude",
+      "Type": "double",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "coordinates",
+      "Type": "varchar(191)",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "description",
+      "Type": "varchar(191)",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "ownerId",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "isActive",
+      "Type": "tinyint(1)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "1",
+      "Extra": ""
+    },
+    {
+      "Field": "createdAt",
+      "Type": "datetime(3)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "current_timestamp(3)",
+      "Extra": ""
+    },
+    {
+      "Field": "updatedAt",
+      "Type": "datetime(3)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    }
+  ],
+  "harvests": [
+    {
+      "Field": "id",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "lotId",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "harvestDate",
+      "Type": "datetime(3)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "quantityKg",
+      "Type": "double",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "qualityGrade",
+      "Type": "varchar(191)",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "harvestedBy",
+      "Type": "varchar(191)",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "notes",
+      "Type": "varchar(191)",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "createdAt",
+      "Type": "datetime(3)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "current_timestamp(3)",
+      "Extra": ""
+    },
+    {
+      "Field": "updatedAt",
+      "Type": "datetime(3)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    }
+  ]
+}
